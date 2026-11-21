@@ -3,7 +3,7 @@
 PohonMC Launcher is a fork of [PineconeMC](https://github.com/ElyPrismLauncher/Launcher), itself a fork of Prism Launcher.
 
 <p align="center">
-  <img alt="PohonMC Launcher tree icon" src="./docs/assets/pohon-tree.png" width="160">
+  <img alt="PohonMC Launcher banner with a lantern-lit voxel tree" src="./docs/assets/pohonmc-banner.jpg" width="1000">
   <br><a href="https://kodin00.github.io/PohonMC/">PohonMC Launcher documentation</a>
 </p>
 

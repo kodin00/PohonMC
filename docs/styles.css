@@ -87,31 +87,33 @@ a:focus-visible, summary:focus-visible {
   border-bottom: .35rem solid #a5c96b;
 }
 
-.hero-layout {
-  min-height: 32rem;
-  display: grid;
-  grid-template-columns: 1.08fr .92fr;
-  align-items: center;
-  gap: 2rem;
-  padding-block: 3rem;
-}
+.hero-layout { padding-block: 2rem; }
 
-.hero h1 {
+.hero-title {
   margin: 0;
-  font: 850 clamp(2.7rem, 6.4vw, 5.2rem)/.98 var(--heading);
-  letter-spacing: -.065em;
+  border: 1px solid #3b5844;
+  line-height: 0;
 }
 
-.hero h1 em {
-  color: var(--moss);
-  font-style: normal;
+.hero-title img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.hero p {
-  max-width: 35ch;
-  margin: 1.6rem 0 1.9rem;
+.hero-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem 2rem;
+  padding-top: 1.4rem;
+}
+
+.hero-intro p {
+  max-width: 48ch;
+  margin: 0;
   color: #dce6d4;
-  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-size: clamp(1rem, 2vw, 1.18rem);
 }
 
 .hero-actions {
@@ -140,26 +142,6 @@ a:focus-visible, summary:focus-visible {
 
 .button-primary:hover { background: #e1f9a6; }
 .button-secondary:hover { background: #2d4937; }
-
-.tree-plot {
-  display: grid;
-  place-items: center;
-  background-color: #172f24;
-  background-image: linear-gradient(#2e4938 1px, transparent 1px), linear-gradient(90deg, #2e4938 1px, transparent 1px);
-  background-size: 1.5rem 1.5rem;
-  background-position: center;
-  border: 1px solid #3b5844;
-  border-radius: 4px;
-  padding: clamp(.7rem, 2.5vw, 1.6rem);
-  box-shadow: .65rem .65rem 0 var(--forest-dark);
-}
-
-.tree-plot img {
-  display: block;
-  width: 100%;
-  max-width: 26rem;
-  height: auto;
-}
 
 .guide {
   display: grid;
@@ -249,8 +231,8 @@ details + p { margin-top: 1.2rem; }
 @media (max-width: 46rem) {
   .wrap { width: min(100% - 2rem, 38rem); }
   .bar { min-height: 0; padding-block: .7rem; flex-wrap: wrap; gap: .35rem 1.2rem; }
-  .hero-layout { grid-template-columns: 1fr; padding-block: 2.4rem 2.8rem; }
-  .tree-plot { width: min(100% - .35rem, 26rem); justify-self: center; }
+  .hero-layout { padding-block: 1.4rem 1.8rem; }
+  .hero-intro { flex-wrap: wrap; }
   .guide { grid-template-columns: 1fr; padding-block: 2.25rem; }
   .contents { position: static; }
 }
