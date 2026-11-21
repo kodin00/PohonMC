@@ -20,6 +20,9 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include "modplatform/ModIndex.h"
+#include "modplatform/modrinth/ModrinthPackIndex.h"
+#include "minecraft/mod/ModFolderModel.h"
+#include <QJsonObject>
 
 #include <modplatform/packwiz/Packwiz.h>
 
@@ -27,6 +30,39 @@ class PackwizTest : public QObject {
     Q_OBJECT
 
    private slots:
+    void serverRequirementPersistence()
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        QDir mods(temp.path());
+        QCOMPARE(ModFolderModel::serverRequirement(mods, "example.jar"), "unknown");
+        QVERIFY(ModFolderModel::setServerRequirement(mods, "example.jar", "required"));
+        QCOMPARE(ModFolderModel::serverRequirement(mods, "example.jar"), "required");
+        QCOMPARE(ModFolderModel::serverRequirement(mods, "example.jar.disabled"), "required");
+        QVERIFY(!ModFolderModel::setServerRequirement(mods, "example.jar", "invalid"));
+        QCOMPARE(ModFolderModel::serverRequirement(mods, "example.jar"), "required");
+        QVERIFY(ModFolderModel::setServerRequirement(mods, "example.jar", "unknown"));
+        QCOMPARE(ModFolderModel::serverRequirement(mods, "example.jar"), "unknown");
+    }
+
+    void providerDeclarationRoundTrip()
+    {
+        QJsonObject json{{"project_id", "project"}, {"title", "Example"}, {"slug", "example"},
+                         {"server_side", "required"}, {"client_side", "optional"}};
+        ModPlatform::IndexedPack pack{};
+        Modrinth::loadIndexedPack(pack, json);
+        QCOMPARE(pack.serverRequirementDeclaration, "required");
+        ModPlatform::IndexedVersion version{};
+        version.fileName = "example.jar";
+        version.fileId = "version";
+        QTemporaryDir temp;
+        auto metadata = Packwiz::V1::createModFormat(QDir(temp.path()), pack, version);
+        Packwiz::V1::updateModIndex(QDir(temp.path()), metadata);
+        QCOMPARE(Packwiz::V1::getIndexForMod(QDir(temp.path()), "example").serverRequirementDeclaration, "required");
+        json.remove("server_side");
+        Modrinth::loadIndexedPack(pack, json);
+        QVERIFY(pack.serverRequirementDeclaration.isEmpty());
+    }
     // Files taken from https://github.com/packwiz/packwiz-example-pack
     void loadFromFile_Modrinth()
     {

@@ -15,7 +15,7 @@ body:
       * You have read the FAQ on the [website](https://pineconemc.ru/#faq) ([alternative link](https://elyprismlauncher.github.io/#faq)) and it has not answered your question.
       * You have read the [Prism Launcher wiki](https://prismlauncher.org/wiki/) and it has not answered your question.
       * Your bug is not caused by Minecraft or any mods you have installed.
-      * Your issue has not been reported before, [make sure to use the search function!](https://github.com/ElyPrismLauncher/Launcher/issues)
+      * Your issue has not been reported before, [make sure to use the search function!](https://github.com/kodin00/PohonMC/issues)
 
       **Do not forget to give your issue a descriptive title.** "Bug in the instance screen" makes it hard to distinguish issues at a glance.
 - type: dropdown
@@ -30,15 +30,15 @@ body:
     - Other
 - type: input
   attributes:
-    label: Version of PineconeMC
-    description: The version of PineconeMC used in the bug report.
-    placeholder: PineconeMC 11.1.2
+    label: Version of PohonMC
+    description: The version of PohonMC used in the bug report.
+    placeholder: PohonMC 11.1.2
   validations:
     required: true
 - type: input
   attributes:
     label: Version of Qt
-    description: The version of Qt used in the bug report. You can find it in Help -> About PineconeMC -> About Qt.
+    description: The version of Qt used in the bug report. You can find it in Help -> About PohonMC -> About Qt.
     placeholder: Qt 6.12.0
   validations:
     required: true

@@ -37,6 +37,8 @@ class V1 {
         QString name{};
         QString filename{};
         ModPlatform::Side side{ ModPlatform::Side::UniversalSide };
+        // Modrinth project declaration; empty when unavailable.
+        QString serverRequirementDeclaration;
         ModPlatform::ModLoaderTypes loaders;
         QStringList mcVersions;
         ModPlatform::IndexedVersionType releaseType;

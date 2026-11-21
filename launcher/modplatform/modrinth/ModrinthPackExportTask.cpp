@@ -42,7 +42,10 @@ ModrinthPackExportTask::ModrinthPackExportTask(const QString& name,
                                                bool optionalFiles,
                                                BaseInstance* instance,
                                                const QString& output,
-                                               MMCZip::FilterFileFunction filter)
+                                               MMCZip::FilterFileFunction filter,
+                                               const QStringList& extraDownloadHosts,
+                                               const QMap<QString, QPair<QString, QString>>& pinnedDownloads,
+                                               std::optional<QFileInfoList> manifestFiles)
     : name(name)
     , version(version)
     , summary(summary)
@@ -52,6 +55,9 @@ ModrinthPackExportTask::ModrinthPackExportTask(const QString& name,
     , gameRoot(instance->gameRoot())
     , output(output)
     , filter(filter)
+    , extraDownloadHosts(extraDownloadHosts)
+    , pinnedDownloads(pinnedDownloads)
+    , manifestFiles(std::move(manifestFiles))
 {}
 
 void ModrinthPackExportTask::executeTask()
@@ -76,7 +82,9 @@ void ModrinthPackExportTask::collectFiles()
     QCoreApplication::processEvents();
 
     files.clear();
-    if (!MMCZip::collectFileListRecursively(instance->gameRoot(), nullptr, &files, filter)) {
+    if (manifestFiles) {
+        files = *manifestFiles;
+    } else if (!MMCZip::collectFileListRecursively(instance->gameRoot(), nullptr, &files, filter)) {
         emitFailed(tr("Could not search for files"));
         return;
     }
@@ -101,8 +109,9 @@ void ModrinthPackExportTask::collectHashes()
         // require sensible file types
         if (!std::any_of(PREFIXES.begin(), PREFIXES.end(), [&relative](const QString& prefix) { return relative.startsWith(prefix); }))
             continue;
-        if (!std::any_of(FILE_EXTENSIONS.begin(), FILE_EXTENSIONS.end(), [&relative](const QString& extension) {
-                return relative.endsWith('.' + extension) || relative.endsWith('.' + extension + ".disabled");
+        if (!std::any_of(FILE_EXTENSIONS.begin(), FILE_EXTENSIONS.end(), [this, &relative](const QString& extension) {
+                const auto sensitivity = manifestFiles ? Qt::CaseInsensitive : Qt::CaseSensitive;
+                return relative.endsWith('.' + extension, sensitivity) || relative.endsWith('.' + extension + ".disabled", sensitivity);
             }))
             continue;
 
@@ -119,6 +128,13 @@ void ModrinthPackExportTask::collectHashes()
         }
         auto sha512 = Hashing::hash(data, Hashing::Algorithm::Sha512);
 
+        const auto pinned = pinnedDownloads.constFind(relative);
+        if (pinned != pinnedDownloads.cend() && pinned->first.compare(sha512, Qt::CaseInsensitive) == 0) {
+            resolvedFiles[relative] = ResolvedFile{ Hashing::hash(data, Hashing::Algorithm::Sha1), sha512, pinned->second, openFile.size(),
+                                                    ModPlatform::Side::NoSide };
+            continue;
+        }
+
         auto allMods = mcInstance->loaderModList()->allMods();
         if (auto modIter = std::find_if(allMods.begin(), allMods.end(), [&file](Mod* mod) { return mod->fileinfo() == file; });
             modIter != allMods.end()) {
@@ -126,7 +142,7 @@ void ModrinthPackExportTask::collectHashes()
             if (mod->metadata() != nullptr) {
                 const QUrl& url = mod->metadata()->url;
                 // ensure the url is permitted on modrinth.com
-                if (!url.isEmpty() && BuildConfig.MODRINTH_MRPACK_HOSTS.contains(url.host())) {
+                if (!url.isEmpty() && (BuildConfig.MODRINTH_MRPACK_HOSTS.contains(url.host()) || extraDownloadHosts.contains(url.host()))) {
                     qDebug() << "Resolving" << relative << "from index";
 
                     auto sha1 = Hashing::hash(data, Hashing::Algorithm::Sha1);
@@ -199,6 +215,21 @@ void ModrinthPackExportTask::parseApiResponse(QByteArray* response)
 
 void ModrinthPackExportTask::buildZip()
 {
+    if (manifestFiles) {
+        QStringList unresolved;
+        for (const auto& file : files) {
+            const auto path = gameRoot.relativeFilePath(file.absoluteFilePath());
+            if (!resolvedFiles.contains(path))
+                unresolved << path;
+        }
+        if (!unresolved.isEmpty()) {
+            emitFailed(tr("These mods have no downloadable provider reference: %1").arg(unresolved.join(", ")));
+            return;
+        }
+        m_manifestIndex = generateIndex();
+        emitSucceeded();
+        return;
+    }
     setStatus(tr("Adding files..."));
 
     auto zipTask = makeShared<MMCZip::ExportToZipTask>(output, gameRoot, files, "overrides/", true);

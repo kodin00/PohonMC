@@ -176,6 +176,10 @@ class ResourceFolderModel : public QAbstractListModel {
     class ProxyModel : public QSortFilterProxyModel {
        public:
         explicit ProxyModel(QObject* parent = nullptr) : QSortFilterProxyModel(parent) {}
+        void setServerRequiredOnly(bool enabled) { m_serverRequiredOnly = enabled; invalidateFilter(); }
+
+       private:
+        bool m_serverRequiredOnly = false;
 
        protected:
         bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;

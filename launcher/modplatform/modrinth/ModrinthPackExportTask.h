@@ -20,6 +20,7 @@
 
 #include <QFuture>
 #include <QFutureWatcher>
+#include <optional>
 #include "BaseInstance.h"
 #include "MMCZip.h"
 #include "minecraft/MinecraftInstance.h"
@@ -36,7 +37,12 @@ class ModrinthPackExportTask : public Task {
                            bool optionalFiles,
                            BaseInstance* instance,
                            const QString& output,
-                           MMCZip::FilterFileFunction filter);
+                           MMCZip::FilterFileFunction filter,
+                           const QStringList& extraDownloadHosts = {},
+                           const QMap<QString, QPair<QString, QString>>& pinnedDownloads = {},
+                           std::optional<QFileInfoList> manifestFiles = std::nullopt);
+
+    QByteArray manifestIndex() const { return m_manifestIndex; }
 
    protected:
     void executeTask() override;
@@ -60,6 +66,10 @@ class ModrinthPackExportTask : public Task {
     const QDir gameRoot;
     const QString output;
     const MMCZip::FilterFileFunction filter;
+    const QStringList extraDownloadHosts;
+    const QMap<QString, QPair<QString, QString>> pinnedDownloads;
+    const std::optional<QFileInfoList> manifestFiles;
+    QByteArray m_manifestIndex;
 
     ModrinthAPI api;
     QFileInfoList files;

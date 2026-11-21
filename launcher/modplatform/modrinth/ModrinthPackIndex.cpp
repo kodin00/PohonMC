@@ -63,6 +63,11 @@ void Modrinth::loadIndexedPack(ModPlatform::IndexedPack& pack, QJsonObject& obj)
 
     auto client = shouldDownloadOnSide(obj["client_side"].toString());
     auto server = shouldDownloadOnSide(obj["server_side"].toString());
+    const auto serverDeclaration = obj["server_side"].toString();
+    if (serverDeclaration == "required" || serverDeclaration == "optional" || serverDeclaration == "unsupported")
+        pack.serverRequirementDeclaration = serverDeclaration;
+    else
+        pack.serverRequirementDeclaration.clear();
 
     if (server && client) {
         pack.side = ModPlatform::Side::UniversalSide;

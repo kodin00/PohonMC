@@ -36,6 +36,10 @@
  */
 
 #include "ModFolderModel.h"
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
 
 #include <FileSystem.h>
 #include <QAbstractButton>
@@ -58,6 +62,64 @@
 #include "minecraft/mod/tasks/LocalModParseTask.h"
 #include "modplatform/ModIndex.h"
 #include "ui/dialogs/CustomMessageBox.h"
+
+namespace {
+QString serverRequirementsPath(const QDir& dir)
+{
+    return dir.filePath(".pohon-server-requirements.json");
+}
+
+QString serverRequirementKey(const QString& fileName)
+{
+    auto name = QFileInfo(fileName).fileName();
+    if (name.endsWith(".disabled"))
+        name.chop(9);
+    return name;
+}
+
+QJsonObject readServerRequirements(const QDir& dir)
+{
+    QFile file(serverRequirementsPath(dir));
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return QJsonDocument::fromJson(file.readAll()).object();
+}
+}
+
+QString ModFolderModel::serverRequirement(const QDir& modsDir, const QString& fileName)
+{
+    const auto value = readServerRequirements(modsDir).value(serverRequirementKey(fileName)).toString();
+    return value == "required" || value == "optional" ? value : QStringLiteral("unknown");
+}
+
+bool ModFolderModel::setServerRequirement(const QDir& modsDir, const QString& fileName, const QString& requirement)
+{
+    return setServerRequirements(modsDir, {{fileName, requirement}});
+}
+
+bool ModFolderModel::setServerRequirements(const QDir& modsDir, const QMap<QString, QString>& requirements)
+{
+    for (auto it = requirements.cbegin(); it != requirements.cend(); ++it) {
+        if (serverRequirementKey(it.key()).isEmpty() ||
+            (it.value() != "required" && it.value() != "optional" && it.value() != "unknown"))
+            return false;
+    }
+    if (!QDir().mkpath(modsDir.absolutePath()))
+        return false;
+    auto values = readServerRequirements(modsDir);
+    for (auto it = requirements.cbegin(); it != requirements.cend(); ++it) {
+        const auto name = serverRequirementKey(it.key());
+        if (it.value() == "unknown")
+            values.remove(name);
+        else
+            values.insert(name, it.value());
+    }
+    QSaveFile file(serverRequirementsPath(modsDir));
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    const auto data = QJsonDocument(values).toJson();
+    return file.write(data) == data.size() && file.commit();
+}
 
 ModFolderModel::ModFolderModel(const QDir& dir, BaseInstance* instance, bool isIndexed, bool createDir, QObject* parent)
     : ResourceFolderModel(QDir(dir), instance, isIndexed, createDir, parent)

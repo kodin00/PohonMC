@@ -18,6 +18,7 @@
 #include "FileSystem.h"
 
 #include "minecraft/mod/tasks/ResourceFolderLoadTask.h"
+#include "minecraft/mod/ModFolderModel.h"
 
 #include "Json.h"
 #include "minecraft/mod/tasks/LocalResourceUpdateTask.h"
@@ -799,6 +800,10 @@ bool ResourceFolderModel::ProxyModel::filterAcceptsRow(int sourceRow, [[maybe_un
     }
 
     const auto& resource = model->at(sourceRow);
+
+    if (m_serverRequiredOnly && qobject_cast<ModFolderModel*>(model) &&
+        ModFolderModel::serverRequirement(model->dir(), resource.fileinfo().fileName()) != "required")
+        return false;
 
     return resource.applyFilter(filterRegularExpression());
 }

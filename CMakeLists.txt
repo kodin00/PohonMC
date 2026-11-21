@@ -195,7 +195,7 @@ set(Launcher_VERSION_NAME4_COMMA "${Launcher_VERSION_MAJOR},${Launcher_VERSION_M
 set(Launcher_BUILD_PLATFORM "unknown" CACHE STRING "A short string identifying the platform that this build was built for. Only used to display in the about dialog.")
 
 # Github repo URL with releases for updater
-set(Launcher_UPDATER_GITHUB_REPO "https://github.com/ElyPrismLauncher/Launcher" CACHE STRING "Base github URL for the updater.")
+set(Launcher_UPDATER_GITHUB_REPO "https://github.com/kodin00/PohonMC" CACHE STRING "Base github URL for the updater.")
 
 # Name to help updater identify valid artifacts
 set(Launcher_BUILD_ARTIFACT "" CACHE STRING "Artifact name to help the updater identify valid artifacts.")
@@ -207,7 +207,7 @@ set(Launcher_META_URL "https://meta.pineconemc.ru/v1/" CACHE STRING "URL to fetc
 set(Launcher_IMGUR_CLIENT_ID "5b97b0713fba4a3" CACHE STRING "Client ID you can get from Imgur when you register an application")
 
 # Bug tracker URL
-set(Launcher_BUG_TRACKER_URL "https://github.com/ElyPrismLauncher/Launcher/issues" CACHE STRING "URL for the bug tracker.")
+set(Launcher_BUG_TRACKER_URL "https://github.com/kodin00/PohonMC/issues" CACHE STRING "URL for the bug tracker.")
 
 # Translations Platform URL
 set(Launcher_TRANSLATIONS_URL "https://hosted.weblate.org/projects/prismlauncher/launcher/" CACHE STRING "URL for the translations platform.")
@@ -350,7 +350,7 @@ include(ECMQtDeclareLoggingCategory)
 
 ####################################### Program Info #######################################
 
-set(Launcher_APP_BINARY_NAME "elyprismlauncher" CACHE STRING "Name of the Launcher binary")
+set(Launcher_APP_BINARY_NAME "pohonmc" CACHE STRING "Name of the Launcher binary")
 add_subdirectory(program_info)
 
 ####################################### Install layout #######################################
@@ -368,12 +368,13 @@ if(NOT (UNIX AND APPLE))
 endif()
 
 if(UNIX AND APPLE)
-    set(BINARY_DEST_DIR "${Launcher_Name}.app/Contents/MacOS")
-    set(LIBRARY_DEST_DIR "${Launcher_Name}.app/Contents/MacOS")
-    set(PLUGIN_DEST_DIR "${Launcher_Name}.app/Contents/MacOS")
-    set(FRAMEWORK_DEST_DIR "${Launcher_Name}.app/Contents/Frameworks")
-    set(RESOURCES_DEST_DIR "${Launcher_Name}.app/Contents/Resources")
-    set(JARS_DEST_DIR "${Launcher_Name}.app/Contents/MacOS/jars")
+    set(Launcher_BundleContents "${Launcher_APP_BINARY_NAME}.app/Contents")
+    set(BINARY_DEST_DIR "${Launcher_BundleContents}/MacOS")
+    set(LIBRARY_DEST_DIR "${Launcher_BundleContents}/MacOS")
+    set(PLUGIN_DEST_DIR "${Launcher_BundleContents}/MacOS")
+    set(FRAMEWORK_DEST_DIR "${Launcher_BundleContents}/Frameworks")
+    set(RESOURCES_DEST_DIR "${Launcher_BundleContents}/Resources")
+    set(JARS_DEST_DIR "${RESOURCES_DEST_DIR}/jars")
 
     # Mac bundle settings
     set(MACOSX_BUNDLE_BUNDLE_NAME "${Launcher_DisplayName}")
@@ -417,6 +418,11 @@ if(UNIX AND APPLE)
             set(ASSETS_OUT_DIR "${CMAKE_BINARY_DIR}/program_info")
             set(GENERATED_ASSETS_CAR "${ASSETS_OUT_DIR}/Assets.car")
             set(ICON_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${Launcher_Branding_MAC_ICON}")
+            set(ICON_DEPLOYMENT_TARGET "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+            if(NOT ICON_DEPLOYMENT_TARGET)
+                execute_process(COMMAND sw_vers -productVersion
+                    OUTPUT_VARIABLE ICON_DEPLOYMENT_TARGET OUTPUT_STRIP_TRAILING_WHITESPACE)
+            endif()
 
             add_custom_command(
                 OUTPUT "${GENERATED_ASSETS_CAR}"
@@ -426,7 +432,7 @@ if(UNIX AND APPLE)
                         --app-icon ${Launcher_Name}
                         --enable-on-demand-resources NO
                         --target-device mac
-                        --minimum-deployment-target ${CMAKE_OSX_DEPLOYMENT_TARGET}
+                        --minimum-deployment-target "${ICON_DEPLOYMENT_TARGET}"
                         --platform macosx
                 DEPENDS "${ICON_SOURCE}"
                 COMMENT "Compiling asset catalog (${ICON_SOURCE})"

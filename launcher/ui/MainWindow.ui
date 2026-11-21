@@ -483,6 +483,11 @@
     <string>CurseForge (zip)</string>
    </property>
   </action>
+  <action name="actionShareModpack">
+   <property name="text">
+    <string>Share Modpack...</string>
+   </property>
+  </action>
   <action name="actionCreateInstanceShortcut">
    <property name="icon">
     <iconset theme="shortcut"/>

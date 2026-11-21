@@ -59,6 +59,7 @@
 
 #include "ui/pages/modplatform/CustomPage.h"
 #include "ui/pages/modplatform/ImportPage.h"
+#include "ui/pages/modplatform/SharePackPage.h"
 #include "ui/pages/modplatform/atlauncher/AtlPage.h"
 #include "ui/pages/modplatform/flame/FlamePage.h"
 #include "ui/pages/modplatform/ftb/FtbPage.h"
@@ -158,6 +159,9 @@ void NewInstanceDialog::reject()
 
 void NewInstanceDialog::accept()
 {
+    if (!creationTask || instName().isEmpty())
+        return;
+
     APPLICATION->settings()->set("NewInstanceGeometry", QString::fromUtf8(saveGeometry().toBase64()));
     importIconNow();
 
@@ -175,6 +179,7 @@ QList<BasePage*> NewInstanceDialog::getPages()
 
     pages.append(new CustomPage(this));
     pages.append(importPage);
+    pages.append(new SharePackPage(this));
     pages.append(new AtlPage(this));
     if (APPLICATION->capabilities() & Application::SupportsFlame)
         pages.append(new FlamePage(this));
@@ -324,6 +329,10 @@ void NewInstanceDialog::importIconNow()
 
 void NewInstanceDialog::selectedPageChanged(BasePage* previous, BasePage* selected)
 {
+    if (dynamic_cast<SharePackPage*>(previous))
+        setSuggestedPack();
+    m_buttons->button(QDialogButtonBox::Ok)->setText(dynamic_cast<SharePackPage*>(selected) ? tr("Install All Mods") : tr("OK"));
+
     auto prevPage = dynamic_cast<ModpackProviderBasePage*>(previous);
     if (prevPage) {
         m_searchTerm = prevPage->getSerachTerm();

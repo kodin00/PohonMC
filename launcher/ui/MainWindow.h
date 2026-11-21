@@ -162,6 +162,7 @@ class MainWindow : public QMainWindow {
     void on_actionExportInstanceZip_triggered();
     void on_actionExportInstanceMrPack_triggered();
     void on_actionExportInstanceFlamePack_triggered();
+    void on_actionShareModpack_triggered();
 
     void on_actionRenameInstance_triggered();
 

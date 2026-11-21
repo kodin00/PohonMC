@@ -58,6 +58,9 @@ void LocalResourceUpdateTask::executeTask()
     }
 
     auto pw_mod = Metadata::create(m_index_dir, m_project, m_version);
+    if (pw_mod.serverRequirementDeclaration.isEmpty() && old_metadata.provider == pw_mod.provider &&
+        old_metadata.project_id == pw_mod.project_id)
+        pw_mod.serverRequirementDeclaration = old_metadata.serverRequirementDeclaration;
     if (pw_mod.isValid()) {
         Metadata::update(m_index_dir, pw_mod);
         emitSucceeded();
