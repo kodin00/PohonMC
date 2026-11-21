@@ -578,6 +578,8 @@ set(MODRINTH_SOURCES
     modplatform/modrinth/ModrinthInstanceCreationTask.h
     modplatform/modrinth/ModrinthPackExportTask.cpp
     modplatform/modrinth/ModrinthPackExportTask.h
+    modplatform/share/SharePack.cpp
+    modplatform/share/SharePack.h
 )
 
 set(PACKWIZ_SOURCES
@@ -1052,6 +1054,8 @@ SET(LAUNCHER_SOURCES
 
     ui/pages/modplatform/ImportPage.cpp
     ui/pages/modplatform/ImportPage.h
+    ui/pages/modplatform/SharePackPage.cpp
+    ui/pages/modplatform/SharePackPage.h
 
     ui/pages/modplatform/OptionalModDialog.cpp
     ui/pages/modplatform/OptionalModDialog.h
@@ -1076,6 +1080,8 @@ SET(LAUNCHER_SOURCES
     ui/dialogs/ExportInstanceDialog.h
     ui/dialogs/ExportPackDialog.cpp
     ui/dialogs/ExportPackDialog.h
+    ui/dialogs/SharePackDialog.cpp
+    ui/dialogs/SharePackDialog.h
     ui/dialogs/ExportToModListDialog.cpp
     ui/dialogs/ExportToModListDialog.h
     ui/dialogs/IconPickerDialog.cpp
@@ -1617,7 +1623,7 @@ if(WIN32 OR (UNIX AND APPLE))
     # Add qtlogging.ini as a config file
     install(
         FILES "qtlogging.ini"
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/${RESOURCES_DEST_DIR}
+        DESTINATION ${RESOURCES_DEST_DIR}
         COMPONENT bundle
     )
 endif()

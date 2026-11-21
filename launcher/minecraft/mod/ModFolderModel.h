@@ -89,6 +89,11 @@ class ModFolderModel : public ResourceFolderModel {
 
     bool isValid();
 
+    // Per-instance, user-confirmed classification. Unknown is the default.
+    static QString serverRequirement(const QDir& modsDir, const QString& fileName);
+    static bool setServerRequirement(const QDir& modsDir, const QString& fileName, const QString& requirement);
+    static bool setServerRequirements(const QDir& modsDir, const QMap<QString, QString>& requirements);
+
     bool setResourceEnabled(const QModelIndexList& indexes, EnableAction action) override;
     bool deleteResources(const QModelIndexList& indexes) override;
 

@@ -414,6 +414,15 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
             m_portable = true;
         }
 #endif
+        // Reuse an existing ElyPrismLauncher data directory when no new default exists.
+        // Explicit paths and portable installations remain authoritative.
+        if (!m_portable && !DesktopServices::isSnap() && !QDir(dataPath).exists()) {
+            const QString oldDataPath = QDir(FS::PathCombine(dataPath, "..", "ElyPrismLauncher")).absolutePath();
+            if (QFile::exists(FS::PathCombine(oldDataPath, "elyprismlauncher.cfg"))) {
+                dataPath = oldDataPath;
+                adjustedBy = "Existing ElyPrismLauncher data path";
+            }
+        }
     }
 
     if (!FS::ensureFolderPathExists(dataPath)) {
@@ -643,7 +652,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     {
         // Provide a fallback for migration from PolyMC
         m_settings.reset(
-            new INISettingsObject({ BuildConfig.LAUNCHER_CONFIGFILE, "prismlauncher.cfg", "polymc.cfg", "multimc.cfg" }, this));
+            new INISettingsObject({ BuildConfig.LAUNCHER_CONFIGFILE, "elyprismlauncher.cfg", "prismlauncher.cfg", "polymc.cfg", "multimc.cfg" }, this));
 
         // Theming
         m_settings->registerSetting("IconTheme", QString());
@@ -1875,6 +1884,9 @@ void Application::detectLibraries()
 QString Application::getJarPath(QString jarFile)
 {
     QStringList potentialPaths = {
+#if defined(Q_OS_MACOS)
+        FS::PathCombine(applicationDirPath(), "..", "Resources", "jars"),
+#endif
 #if defined(Q_OS_LINUX) || defined(Q_OS_FREEBSD) || defined(Q_OS_OPENBSD)
         FS::PathCombine(m_rootPath, "share", BuildConfig.LAUNCHER_NAME),
 #endif

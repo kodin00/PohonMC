@@ -57,6 +57,7 @@
 #include "ui/dialogs/CustomMessageBox.h"
 #include "ui/dialogs/ResourceDownloadDialog.h"
 #include "ui/dialogs/ResourceUpdateDialog.h"
+#include "ui/dialogs/SharePackDialog.h"
 
 #include "minecraft/PackProfile.h"
 #include "minecraft/VersionFilterData.h"
@@ -110,6 +111,39 @@ ModFolderPage::ModFolderPage(BaseInstance* inst, ModFolderModel* model, QWidget*
     ui->actionsToolbar->insertActionAfter(ui->actionViewHomepage, ui->actionExportMetadata);
 
     ui->actionsToolbar->insertActionAfter(ui->actionViewFolder, ui->actionViewConfigs);
+
+    auto* serverMenu = new QMenu(this);
+    auto* serverAction = new QAction(tr("Server Mods"), this);
+    serverAction->setToolTip(tr("Classify selected mods for this server"));
+    serverAction->setMenu(serverMenu);
+    for (const auto& entry : QList<QPair<QString, QString>>{{tr("Mark Required"), "required"},
+                                                              {tr("Mark Optional"), "optional"},
+                                                              {tr("Clear Classification"), "unknown"}}) {
+        auto* action = serverMenu->addAction(entry.first);
+        connect(action, &QAction::triggered, this, [this, requirement = entry.second] {
+            const auto selection = m_filterModel->mapSelectionToSource(ui->treeView->selectionModel()->selection()).indexes();
+            QMap<QString, QString> requirements;
+            for (const auto* mod : m_model->selectedMods(selection))
+                requirements.insert(mod->fileinfo().fileName(), requirement);
+            if (!requirements.isEmpty() && !ModFolderModel::setServerRequirements(m_model->dir(), requirements))
+                QMessageBox::warning(this, tr("Server Mods"), tr("Could not save the server mod classification."));
+            static_cast<ResourceFolderModel::ProxyModel*>(m_filterModel)->invalidate();
+        });
+    }
+    serverMenu->addSeparator();
+    auto* requiredOnly = serverMenu->addAction(tr("Show Only Server-Required Mods"));
+    requiredOnly->setCheckable(true);
+    connect(requiredOnly, &QAction::toggled, this, [this](bool enabled) {
+        static_cast<ResourceFolderModel::ProxyModel*>(m_filterModel)->setServerRequiredOnly(enabled);
+    });
+    if (auto* instance = dynamic_cast<MinecraftInstance*>(m_instance); instance && m_model->dir() == QDir(instance->modsRoot())) {
+        auto* share = serverMenu->addAction(tr("Share Modpack..."));
+        connect(share, &QAction::triggered, this, [this, instance] {
+            SharePackDialog::showForInstance(instance, this);
+            m_filterModel->invalidate();
+        });
+    }
+    ui->actionsToolbar->insertActionBefore(ui->actionAddItem, serverAction);
 }
 
 bool ModFolderPage::shouldDisplay() const

@@ -174,6 +174,8 @@ struct IndexedPack {
     QString logoUrl;
     QString websiteUrl;
     Side side = Side::NoSide;
+    // Provider's declaration, not a claim about any particular server's mod list.
+    QString serverRequirementDeclaration;
 
     bool versionsLoaded = false;
     QList<IndexedVersion> versions;

@@ -105,6 +105,7 @@
 #include "ui/dialogs/NewInstanceDialog.h"
 #include "ui/dialogs/NewsDialog.h"
 #include "ui/dialogs/ProgressDialog.h"
+#include "ui/dialogs/SharePackDialog.h"
 #include "ui/dialogs/skins/SkinManageDialog.h"
 #include "ui/instanceview/InstanceDelegate.h"
 #include "ui/instanceview/InstanceProxyModel.h"
@@ -211,6 +212,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
         exportInstanceMenu->addAction(ui->actionExportInstanceZip);
         exportInstanceMenu->addAction(ui->actionExportInstanceMrPack);
         exportInstanceMenu->addAction(ui->actionExportInstanceFlamePack);
+        exportInstanceMenu->addAction(ui->actionShareModpack);
         ui->actionExportInstance->setMenu(exportInstanceMenu);
     }
 
@@ -1563,6 +1565,12 @@ void MainWindow::on_actionExportInstanceFlamePack_triggered()
             dlg.exec();
         }
     }
+}
+
+void MainWindow::on_actionShareModpack_triggered()
+{
+    if (auto* instance = dynamic_cast<MinecraftInstance*>(m_selectedInstance))
+        SharePackDialog::showForInstance(instance, this);
 }
 
 void MainWindow::on_actionRenameInstance_triggered()

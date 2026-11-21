@@ -320,7 +320,8 @@ std::unique_ptr<MinecraftInstance> ModrinthCreationTask::createInstance()
     downloadMods->start();
     m_task = downloadMods;
 
-    loop.exec();
+    if (!downloadMods->isFinished())
+        loop.exec();
 
     if (!endedWell) {
         for (auto* resource : resources) {
@@ -340,10 +341,12 @@ std::unique_ptr<MinecraftInstance> ModrinthCreationTask::createInstance()
     });
     connect(ensureMetadataTask.get(), &Task::stepProgress, this, &ModrinthCreationTask::propagateStepProgress);
 
-    ensureMetadataTask->start();
-    m_task = ensureMetadataTask;
-
-    ensureMetaLoop.exec();
+    if (!resources.isEmpty()) {
+        ensureMetadataTask->start();
+        m_task = ensureMetadataTask;
+        if (!ensureMetadataTask->isFinished())
+            ensureMetaLoop.exec();
+    }
     for (auto* resource : resources) {
         delete resource;
     }

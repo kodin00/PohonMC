@@ -129,6 +129,7 @@ auto V1::createModFormat([[maybe_unused]] const QDir& index_dir,
     mod.file_id = mod_version.fileId;
     mod.project_id = mod_pack.addonId;
     mod.side = mod_version.side == ModPlatform::Side::NoSide ? mod_pack.side : mod_version.side;
+    mod.serverRequirementDeclaration = mod_pack.serverRequirementDeclaration;
     mod.loaders = mod_version.loaders;
     mod.mcVersions = mod_version.mcVersion;
     mod.mcVersions.removeDuplicates();
@@ -224,6 +225,7 @@ void V1::updateModIndex(const QDir& index_dir, Mod& mod)
         auto tbl = toml::table{ { "name", mod.name.toStdString() },
                                 { "filename", mod.filename.toStdString() },
                                 { "side", ModPlatform::SideUtils::toString(mod.side).toStdString() },
+                                { "x-pohon-server-requirement-declaration", mod.serverRequirementDeclaration.toStdString() },
                                 { "x-prismlauncher-loaders", loaders },
                                 { "x-prismlauncher-mc-versions", mcVersions },
                                 { "x-prismlauncher-release-type", mod.releaseType.toString().toStdString() },
@@ -301,6 +303,9 @@ auto V1::getIndexForMod(const QDir& index_dir, QString slug) -> Mod
         mod.name = stringEntry(table, "name");
         mod.filename = stringEntry(table, "filename");
         mod.side = ModPlatform::SideUtils::fromString(stringEntry(table, "side"));
+        auto declaration = stringEntry(table, "x-pohon-server-requirement-declaration");
+        if (declaration == "required" || declaration == "optional" || declaration == "unsupported")
+            mod.serverRequirementDeclaration = declaration;
         mod.releaseType = ModPlatform::IndexedVersionType::fromString(table["x-prismlauncher-release-type"].value_or(""));
         if (auto loaders = table["x-prismlauncher-loaders"]; loaders && loaders.is_array()) {
             for (auto&& loader : *loaders.as_array()) {
