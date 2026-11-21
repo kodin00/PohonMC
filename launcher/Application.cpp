@@ -651,8 +651,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     // Initialize application settings
     {
         // Provide a fallback for migration from PolyMC
-        m_settings.reset(
-            new INISettingsObject({ BuildConfig.LAUNCHER_CONFIGFILE, "elyprismlauncher.cfg", "prismlauncher.cfg", "polymc.cfg", "multimc.cfg" }, this));
+        m_settings.reset(new INISettingsObject(
+            { BuildConfig.LAUNCHER_CONFIGFILE, "elyprismlauncher.cfg", "prismlauncher.cfg", "polymc.cfg", "multimc.cfg" }, this));
 
         // Theming
         m_settings->registerSetting("IconTheme", QString());

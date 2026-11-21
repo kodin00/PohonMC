@@ -41,8 +41,6 @@ runs:
     - name: Setup macOS dependencies
       if: ${{ runner.os == 'macOS' }}
       uses: ./.github/actions/setup-dependencies/macos
-      with:
-        build-type: ${{ inputs.build-type }}
 
     - name: Setup Windows dependencies
       if: ${{ runner.os == 'Windows' }}
@@ -77,5 +75,6 @@ runs:
       with:
         aqtversion: "==3.1.*"
         version: ${{ inputs.qt-version }}
+        arch: ${{ inputs.qt-architecture }}
         modules: qtimageformats qtnetworkauth
         cache: ${{ inputs.build-type == 'Debug' }}

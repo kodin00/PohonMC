@@ -20,20 +20,17 @@ jobs:
   blocked_status:
     name: Check Blocked Status
     runs-on: ubuntu-slim
+    permissions:
+      issues: write
+      pull-requests: read
+      statuses: write
 
     steps:
-      - name: Generate token
-        id: generate-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.PULL_REQUEST_APP_ID }}
-          private-key: ${{ secrets.PULL_REQUEST_APP_PRIVATE_KEY }}
-
       - name: Setup From Dispatch Event
         if: github.event_name == 'workflow_dispatch'
         id: dispatch_event_setup
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr_id }}
         run: |
           # setup env for the rest of the workflow
@@ -112,7 +109,7 @@ jobs:
         id: blocking_data
         if: fromJSON(steps.pr_ids.outputs.prs).numBlocking > 0
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           BLOCKING_PRS: ${{ steps.pr_ids.outputs.prs }}
         run: |
           blocked_pr_data=$(
@@ -155,7 +152,7 @@ jobs:
         if: "(fromJSON(steps.pr_ids.outputs.prs).numBlocking > 0) && !contains(fromJSON(env.JOB_DATA).prLabels, 'status: blocked') && !fromJSON(steps.blocking_data.outputs.all_merged)"
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh -R ${{ github.repository }} issue edit --add-label 'status: blocked' "$PR_NUMBER"
 
@@ -164,7 +161,7 @@ jobs:
         if: fromJSON(steps.pr_ids.outputs.prs).numBlocking > 0 && fromJSON(steps.blocking_data.outputs.all_merged)
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh -R ${{ github.repository }} issue edit --remove-label 'status: blocked' "$PR_NUMBER"
 
@@ -173,7 +170,7 @@ jobs:
         if: fromJSON(steps.pr_ids.outputs.prs).numBlocking > 0
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           BLOCKING_ISSUES: ${{ steps.blocking_data.outputs.current_blocking }}
         run: |
           while read -r pr ; do
@@ -185,7 +182,7 @@ jobs:
         if: fromJSON(steps.pr_ids.outputs.prs).numBlocking > 0
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           BLOCKING_DATA: ${{ steps.blocking_data.outputs.data }}
         run: |
           pr_head_sha=$(jq -r '.prHeadSha' <<< "$JOB_DATA")
@@ -247,7 +244,7 @@ jobs:
         if: fromJSON(steps.pr_ids.outputs.prs).numBlocking > 0
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           COMMENT_BODY: ${{ steps.generate-comment.outputs.body }}
         run: |
           gh -R ${{ github.repository }} issue comment "$PR_NUMBER" \
