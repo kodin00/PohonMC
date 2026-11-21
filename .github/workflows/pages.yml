@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - codex/pohonmc-docs-and-ci
     paths:
       - "docs/**"
       - ".github/workflows/pages.yml"
