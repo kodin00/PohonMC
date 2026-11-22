@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PohonMC news feed, shown in the news bar at the bottom of the launcher.
+  Served at https://kodin00.github.io/PohonMC/feed/feed.xml (GitHub Pages, docs/ folder).
+
+  To add a news entry:
+    - Copy an <entry> block and put it at the TOP of the list (newest first).
+      The launcher shows the first entry's title in the bar and lists all of them in "More News".
+    - <id> MUST be a real https URL: the launcher opens it when the entry is clicked.
+    - <title> is plain text. <content type="text"> is shown as the article body.
+    - Update the feed-level <updated> to match the newest entry.
+    - Keep the file well-formed (check it with: xmllint -noout docs/feed/feed.xml)
+-->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>PohonMC News</title>
+  <subtitle>News and announcements for PohonMC Launcher</subtitle>
+  <id>https://kodin00.github.io/PohonMC/feed/feed.xml</id>
+  <link rel="self" type="application/atom+xml" href="https://kodin00.github.io/PohonMC/feed/feed.xml"/>
+  <link rel="alternate" type="text/html" href="https://github.com/kodin00/PohonMC"/>
+  <updated>2026-11-22T00:00:00Z</updated>
+  <author>
+    <name>PohonMC</name>
+    <uri>https://github.com/kodin00/PohonMC</uri>
+  </author>
+
+  <entry>
+    <title>Share codes: send a modpack to a friend</title>
+    <id>https://github.com/kodin00/PohonMC#share-a-modpack</id>
+    <link rel="alternate" type="text/html" href="https://github.com/kodin00/PohonMC#share-a-modpack"/>
+    <updated>2026-11-22T00:00:00Z</updated>
+    <content type="text">Use Export - Share Modpack to copy a share code for an instance, and Add Instance - Share Code to install it on another launcher. The code records the exact Minecraft version, mod loader and mod files, and you can mark which mods players need to join your server. See the README for the full steps.</content>
+  </entry>
+
+  <entry>
+    <title>Welcome to PohonMC</title>
+    <id>https://kodin00.github.io/PohonMC/</id>
+    <link rel="alternate" type="text/html" href="https://kodin00.github.io/PohonMC/"/>
+    <updated>2026-11-21T00:00:00Z</updated>
+    <content type="text">PohonMC is a fork of PineconeMC, which is itself a fork of Prism Launcher. It keeps Ely.by account support and adds share-code modpack sharing. Downloads and documentation are on the PohonMC site, and bug reports are welcome on GitHub.</content>
+  </entry>
+</feed>

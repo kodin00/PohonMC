@@ -47,6 +47,10 @@ run/
 
 .cache/
 
+# Local AI agent state
+.claude/settings.local.json
+.claude/worktrees/
+
 # Nix/NixOS
 .direnv/
 ## Used when manually invoking stdenv phases

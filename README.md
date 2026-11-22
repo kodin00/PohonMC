@@ -1,72 +1,77 @@
 # PohonMC Launcher
 
-PohonMC Launcher is a fork of [PineconeMC](https://github.com/ElyPrismLauncher/Launcher), itself a fork of Prism Launcher.
+PohonMC Launcher adalah fork dari [PineconeMC](https://github.com/ElyPrismLauncher/Launcher), yang juga merupakan fork dari Prism Launcher.
 
 <p align="center">
-  <img alt="PohonMC Launcher banner with a lantern-lit voxel tree" src="./docs/assets/pohonmc-banner.jpg" width="1000">
-  <br><a href="https://kodin00.github.io/PohonMC/#downloads">Download PohonMC</a> · <a href="https://kodin00.github.io/PohonMC/">Documentation</a>
+  <img alt="Banner PohonMC Launcher bergambar pohon voxel yang diterangi lentera" src="./docs/assets/pohonmc-banner.jpg" width="1000">
+  <br><a href="https://kodin00.github.io/PohonMC/#downloads">Unduh PohonMC</a> · <a href="https://kodin00.github.io/PohonMC/">Dokumentasi</a>
 </p>
 
 <p align="center">
-  This <b>fork</b> of Prism Launcher adds integrated support for Ely.by accounts (MSA accounts can still be used)<br />
-  <br />This is <b>not</b> endorsed by Prism Launcher or Ely.by.
+  <b>Fork</b> Prism Launcher ini menambahkan dukungan bawaan untuk akun Ely.by (akun MSA tetap bisa dipakai)<br />
+  <br />Proyek ini <b>tidak</b> didukung atau disahkan oleh Prism Launcher maupun Ely.by.
 </p>
 
-## Installation
+## Instalasi
 
-- All downloads and instructions for PohonMC Launcher can be found on the [Downloads](https://kodin00.github.io/PohonMC/#downloads) page.
-- Last build status can be found in the [GitHub Actions](https://github.com/kodin00/PohonMC/actions) tab.
+- Semua unduhan dan petunjuk pemasangan PohonMC Launcher ada di halaman [Unduhan](https://kodin00.github.io/PohonMC/#downloads).
+- Status build terakhir bisa dilihat di tab [GitHub Actions](https://github.com/kodin00/PohonMC/actions).
 
-### Development Builds
+### Build Pengembangan
 
-Please understand that these builds are not intended for most users. There may be bugs, and other instabilities. You have been warned.
+Build ini tidak ditujukan untuk kebanyakan pengguna. Bisa saja ada bug atau perilaku yang belum stabil, jadi pakai dengan risiko sendiri.
 
-There are development builds available through:
+Build pengembangan tersedia lewat:
 
-- [GitHub Actions](https://github.com/kodin00/PohonMC/actions) (includes builds from pull requests opened by contributors)
-- [nightly.link](https://nightly.link/kodin00/PohonMC/workflows/build/develop) (this will always point only to the latest version of develop)
+- [GitHub Actions](https://github.com/kodin00/PohonMC/actions), termasuk build dari pull request yang dibuka kontributor
+- [nightly.link](https://nightly.link/kodin00/PohonMC/workflows/build/develop), yang selalu mengarah ke versi terbaru branch develop
 
-These have debug information in the binaries, so their file sizes are relatively larger.
+Binary pada build ini menyertakan informasi debug, sehingga ukuran berkasnya lebih besar.
 
-## Community & Support
+## Berbagi Modpack
 
-Feel free to create a GitHub issue if you find a bug or want to suggest a new feature. The upstream PineconeMC community also has a [Discord server](https://discord.gg/5kcBCvnbTp).
+1. Buat instance Minecraft dan tambahkan mod yang kamu inginkan.
+2. Pilih instance tersebut, lalu buka **Export → Share Modpack**. Tandai mod yang wajib dimiliki pemain untuk masuk ke servermu sebagai **Required**, termasuk dependensi wajibnya. Kamu juga bisa mengelompokkan mod yang dipilih lewat **Edit → Mods → Server Mods**. Kolom **Server Requirement** di daftar mod menunjukkan mod mana yang ditandai Required atau Optional. Urutkan berdasarkan kolom itu supaya mod yang wajib untuk server muncul paling atas.
+3. Klik **Copy Share Code** dan kirim kodenya ke pemain lain. Kode itu memuat versi Minecraft yang persis sama, mod loader beserta versinya, dan daftar berkas mod. Tiap launcher mengunduh berkasnya langsung dari penyedia aslinya.
+4. Di launcher penerima, buka **Add Instance → Share Code**, tempel kodenya, lalu klik **Preview Modpack**. Pakai **Show only server-required mods** untuk menyaring pratinjau. Pilih **Install All Mods** atau **Install Server-Required Mods Only**. Pemasangan khusus mod wajib akan mengaktifkan mod yang dipilih, termasuk mod yang dinonaktifkan pembuatnya di komputernya sendiri.
 
-## Share a Modpack
+PohonMC mengunduh berkas Modrinth dan CurseForge yang didukung secara otomatis. Berkas yang tidak punya sumber unduhan yang didukung tetap tercantum di share code dan tampil sebagai **Missing** di launcher penerima. Kirim berkas itu secara terpisah supaya pemain lain bisa menaruhnya di folder Mods milik instance tersebut.
 
-1. Create a Minecraft instance and add the mods you want.
-2. Select the instance and open **Export → Share Modpack**. Mark the mods that players need to join your server as **Required**, including their required dependencies. You can also classify selected mods from **Edit → Mods → Server Mods**.
-3. Click **Copy Share Code** and send it to the other player. The code includes the exact Minecraft version, mod loader and version, and mod files. Each launcher downloads the files from their original providers.
-4. On the receiving launcher, open **Add Instance → Share Code**, paste the code, and click **Preview Modpack**. Use **Show only server-required mods** to filter the preview. Choose **Install All Mods** or **Install Server-Required Mods Only**. The required-only install enables the selected mods, including any the author had disabled locally.
+## Build dari Kode Sumber
 
-PohonMC downloads supported Modrinth and CurseForge files automatically. Files without a supported download stay in the share code and appear as **Missing** on the receiving launcher. Send those files separately so the other player can add them to the instance’s Mods folder.
+Pasang dulu dependensi yang tercantum di [petunjuk build](https://prismlauncher.org/wiki/development/build-instructions) Prism Launcher, lalu gunakan Makefile di root repositori:
 
-## Building
+- `make build`: konfigurasi dan build untuk sistem operasi yang sedang dipakai.
+- `make run`: build, lalu jalankan PohonMC Launcher.
+- `make test`: build dan jalankan rangkaian tes dengan `ctest`.
+- `make package`: buat paket siap pasang, berupa app bundle di macOS atau `.deb` lewat `make package deb`.
+- `make clean`: hapus direktori `build/`.
+- `make help`: tampilkan daftar target yang tersedia.
 
-If you want to build PohonMC Launcher yourself, check the [build instructions](https://prismlauncher.org/wiki/development/build-instructions).
+Platform dideteksi otomatis dari sistem yang dipakai. Kamu bisa menggantinya dengan `PLATFORM=macos|linux|windows` atau menuliskannya langsung setelah target, misalnya `make build macos`. Jenis build diatur dengan `CONFIG=Debug|Release`, dengan `Debug` sebagai bawaan. Makefile ini menjalankan preset CMake di `CMakePresets.json`, dan semua hasil build disimpan di `build/`.
 
-## The following comes from the original Prism Launcher README
+## Bagian berikut berasal dari README asli Prism Launcher
 
-### Forking/Redistributing/Custom builds policy
+### Kebijakan fork, redistribusi, dan build kustom
 
-You are free to fork, redistribute and provide custom builds as long as you follow the terms of the [license](LICENSE) (this is a legal responsibility), and if you made code changes rather than just packaging a custom build, please do the following as a basic courtesy:
+Kamu bebas membuat fork, mendistribusikan ulang, dan menyediakan build kustom selama mengikuti ketentuan [lisensi](LICENSE). Ini kewajiban hukum. Kalau kamu mengubah kodenya dan tidak sekadar mengemas build kustom, mohon lakukan hal berikut sebagai bentuk sopan santun:
 
-- Make it clear that your fork is not Prism Launcher and is not endorsed by or affiliated with the Prism Launcher project (<https://prismlauncher.org>).
-- Go through [CMakeLists.txt](CMakeLists.txt) and change Prism Launcher's API keys to your own or set them to empty strings (`""`) to disable them (this way the program will still compile but the functionality requiring those keys will be disabled).
+- Jelaskan bahwa fork milikmu bukan Prism Launcher dan tidak didukung oleh atau berafiliasi dengan proyek Prism Launcher (<https://prismlauncher.org>).
+- Periksa [CMakeLists.txt](CMakeLists.txt) dan ganti API key milik Prism Launcher dengan milikmu sendiri, atau kosongkan nilainya (`""`) untuk menonaktifkannya. Dengan begitu program tetap bisa dikompilasi, tetapi fitur yang membutuhkan key tersebut tidak aktif.
 
-If you have any questions or want any clarification on the above conditions please make an issue and ask us.
+Kalau ada pertanyaan atau butuh penjelasan soal ketentuan di atas, silakan buat issue.
 
-If you are just building Prism Launcher for your distribution, please make sure to set the `Launcher_BUILD_PLATFORM` to a slug representing your distribution. Examples are `archlinux`, `fedora` and `nixpkgs`.
+Kalau kamu hanya membuat build Prism Launcher untuk distribusimu, pastikan `Launcher_BUILD_PLATFORM` diisi dengan slug yang mewakili distribusi tersebut. Contohnya `archlinux`, `fedora`, dan `nixpkgs`.
 
-Note that if you build this software without removing the provided API keys in [CMakeLists.txt](CMakeLists.txt) you are accepting the following terms and conditions:
+Perlu diingat, kalau kamu membuat build perangkat lunak ini tanpa menghapus API key yang disediakan di [CMakeLists.txt](CMakeLists.txt), kamu dianggap menyetujui syarat dan ketentuan berikut:
 
 - [Microsoft Identity Platform Terms of Use](https://docs.microsoft.com/en-us/legal/microsoft-identity-platform/terms-of-use)
 - [CurseForge 3rd Party API Terms and Conditions](https://support.curseforge.com/en/support/solutions/articles/9000207405-curse-forge-3rd-party-api-terms-and-conditions)
 
-If you do not agree with these terms and conditions, then remove the associated API keys from the [CMakeLists.txt](CMakeLists.txt) file by setting them to an empty string (`""`).
+Kalau kamu tidak setuju dengan syarat dan ketentuan tersebut, hapus API key terkait dari berkas [CMakeLists.txt](CMakeLists.txt) dengan mengosongkan nilainya (`""`).
 
-### License [![https://github.com/PrismLauncher/PrismLauncher/blob/develop/LICENSE](https://img.shields.io/github/license/PrismLauncher/PrismLauncher?label=License&logo=gnu&color=C4282D)](LICENSE)
+### Lisensi [![https://github.com/PrismLauncher/PrismLauncher/blob/develop/LICENSE](https://img.shields.io/github/license/PrismLauncher/PrismLauncher?label=License&logo=gnu&color=C4282D)](LICENSE)
 
-All launcher code is available under the GPL-3.0-only license.
+Seluruh kode launcher tersedia di bawah lisensi GPL-3.0-only.
 
-The logo and related assets are under the CC BY-SA 4.0 license.
+Logo dan aset terkait berada di bawah lisensi CC BY-SA 4.0.

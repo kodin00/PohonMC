@@ -33,6 +33,7 @@
  *      limitations under the License.
  */
 
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -242,6 +243,52 @@ class ResourceFolderModelTest : public QObject {
         QVERIFY(!res_2.enable(initial_enabled_res_2 ? EnableAction::ENABLE : EnableAction::DISABLE));
         QVERIFY(res_2.enabled() == initial_enabled_res_2);
         QVERIFY(res_2.internalId() == id_2);
+    }
+
+    void test_serverRequirementColumn()
+    {
+        QString file_mod = QFINDTESTDATA("testdata/Resources/supercoolmod.jar");
+
+        QTemporaryDir tmp;
+        ModFolderModel model(QDir(tmp.path()), nullptr, false, false);
+
+        { EXEC_UPDATE_TASK(model.installResource(file_mod), QVERIFY) }
+
+        QCOMPARE(model.size(), 1);
+        QCOMPARE(model.headerData(ModFolderModel::ServerRequirementColumn, Qt::Horizontal).toString(), "Server Requirement");
+
+        const auto cell = model.index(0, ModFolderModel::ServerRequirementColumn);
+        QVERIFY(model.data(cell, Qt::DisplayRole).toString().isEmpty());
+
+        QVERIFY(ModFolderModel::setServerRequirement(model.dir(), "supercoolmod.jar", "required"));
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+        model.refreshServerRequirements();
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(model.data(cell, Qt::DisplayRole).toString(), "Required");
+
+        QVERIFY(ModFolderModel::setServerRequirement(model.dir(), "supercoolmod.jar", "optional"));
+        model.refreshServerRequirements();
+        QCOMPARE(model.data(cell, Qt::DisplayRole).toString(), "Optional");
+
+        QVERIFY(ModFolderModel::setServerRequirement(model.dir(), "supercoolmod.jar", "unknown"));
+        model.refreshServerRequirements();
+        QVERIFY(model.data(cell, Qt::DisplayRole).toString().isEmpty());
+    }
+
+    void test_serverRequirementSort()
+    {
+        QString file_mod = QFINDTESTDATA("testdata/Resources/supercoolmod.jar");
+
+        Mod required(file_mod);
+        Mod optional(file_mod);
+        Mod unknown(file_mod);
+        required.setServerRequirement("required");
+        optional.setServerRequirement("optional");
+
+        QVERIFY(required.compare(optional, SortType::ServerRequirement) < 0);
+        QVERIFY(optional.compare(unknown, SortType::ServerRequirement) < 0);
+        QVERIFY(unknown.compare(required, SortType::ServerRequirement) > 0);
+        QCOMPARE(unknown.compare(unknown, SortType::ServerRequirement), 0);
     }
 };
 
