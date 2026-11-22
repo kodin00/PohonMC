@@ -189,14 +189,6 @@ h2 {
 p { margin: 0 0 1rem; }
 .guide-content p:last-child { margin-bottom: 0; }
 
-.link-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem 1.25rem;
-  margin: 0 0 1.15rem;
-  font-weight: 720;
-}
-
 .steps { padding-inline-start: 1.65rem; }
 .steps li { padding-inline-start: .25rem; margin-block: .5rem; }
 .steps li::marker { color: #4e6c35; font-weight: 800; }
