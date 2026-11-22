@@ -9,6 +9,9 @@ INSTALL_DIR ?= install
 JOBS       ?=
 CMAKE_ARGS ?=
 RUN_ARGS   ?=
+CLANG_FORMAT ?= clang-format
+CLANG_TIDY   ?= clang-tidy
+FORMAT_BASE  ?= origin/develop
 
 # Platform words that may be given positionally (make build macos).
 PLATFORM_WORDS := macos linux windows deb
@@ -119,9 +122,19 @@ DEB_MAINT   = $(shell sed -n '/<developer/,/<\/developer>/s:.*<name>\(.*\)</name
 DEB_SUMMARY = $(shell sed -n 's:.*<summary>\(.*\)</summary>.*:\1:p' $(METAINFO))
 DEB_STAGE   = $(INSTALL_DIR)/deb-root
 
+# ----------------------------------------------------- changed source files --
+# Tracked C/C++/ObjC++ files changed relative to FORMAT_BASE, plus staged and
+# unstaged ones (deleted files are skipped). Evaluated when a recipe uses it.
+CHANGED_ALL = $(shell { git diff --name-only --diff-filter=ACMR $(FORMAT_BASE)... 2>/dev/null; \
+  git diff --name-only --diff-filter=ACMR; git diff --name-only --cached --diff-filter=ACMR; } \
+  | sort -u | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|m|mm)$$' \
+  | while read -r f; do [ -f "$$f" ] && echo "$$f"; done)
+CHANGED_CPP = $(filter %.cpp,$(CHANGED_ALL))
+
 # ----------------------------------------------------------------- targets --
 .DEFAULT_GOAL := help
 .PHONY: help configure build run test package clean check-platform \
+        format format-check tidy \
         package-macos package-linux package-windows package-deb $(PLATFORM_WORDS)
 
 help:
@@ -137,6 +150,9 @@ help:
 	@echo "  test       Build, then run ctest"
 	@echo "  package    Build, then package for the platform (see below)"
 	@echo "  clean      Remove BUILD_DIR and INSTALL_DIR/deb-root"
+	@echo "  format        Run clang-format in place on changed C/C++/ObjC++ files"
+	@echo "  format-check  Like format, but only report problems (--dry-run --Werror)"
+	@echo "  tidy          Run clang-tidy on changed .cpp files (needs BUILD_DIR/compile_commands.json)"
 	@echo
 	@echo "Platforms (positional word or PLATFORM=...): macos linux windows deb"
 	@echo "  Auto-detected from uname -s. Cross-compiling is not supported: a"
@@ -152,6 +168,8 @@ help:
 	@echo "  ENABLE_LTO  ON|OFF (default: ON for Release, OFF for Debug)"
 	@echo "  JDK         JDK 7-19 home for the Java helpers (macOS default: Homebrew openjdk@17)"
 	@echo "  RUN_ARGS    Arguments passed to the launcher by 'make run'"
+	@echo "  FORMAT_BASE Ref that format/format-check/tidy diff against (default: origin/develop)"
+	@echo "  CLANG_FORMAT, CLANG_TIDY  Tool executables (default: clang-format, clang-tidy)"
 	@echo
 	@echo "Dependencies: if VCPKG_ROOT is set and BUILD_DIR=build, the CMake preset"
 	@echo "is used; otherwise plain cmake is run (vcpkg toolchain if VCPKG_ROOT is"
@@ -226,6 +244,22 @@ package-deb: build
 	  > $(DEB_STAGE)/DEBIAN/control
 	dpkg-deb --root-owner-group --build $(DEB_STAGE) $(INSTALL_DIR)/$(DEB_NAME)_$(DEB_VERSION)_$$(dpkg --print-architecture).deb
 	@echo "Package: $(INSTALL_DIR)/$(DEB_NAME)_$(DEB_VERSION)_*.deb"
+
+format:
+	@command -v $(CLANG_FORMAT) >/dev/null || { echo "error: $(CLANG_FORMAT) not found" >&2; exit 1; }
+	@files="$(CHANGED_ALL)"; if [ -z "$$files" ]; then echo "No changed C/C++ files."; else \
+	  $(CLANG_FORMAT) -i $$files && echo "Formatted: $$files"; fi
+
+format-check:
+	@command -v $(CLANG_FORMAT) >/dev/null || { echo "error: $(CLANG_FORMAT) not found" >&2; exit 1; }
+	@files="$(CHANGED_ALL)"; if [ -z "$$files" ]; then echo "No changed C/C++ files."; else \
+	  $(CLANG_FORMAT) --dry-run --Werror $$files; fi
+
+tidy:
+	@command -v $(CLANG_TIDY) >/dev/null || { echo "error: $(CLANG_TIDY) not found" >&2; exit 1; }
+	@test -f $(BUILD_DIR)/compile_commands.json || { echo "error: $(BUILD_DIR)/compile_commands.json not found - run 'make configure' first (Ninja/Makefile generators export it)" >&2; exit 1; }
+	@files="$(CHANGED_CPP)"; if [ -z "$$files" ]; then echo "No changed .cpp files."; else \
+	  $(CLANG_TIDY) -p $(BUILD_DIR) $$files; fi
 
 clean:
 	rm -rf $(BUILD_DIR) $(DEB_STAGE)

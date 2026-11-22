@@ -46,6 +46,9 @@ Use the root `Makefile`:
 | `make test` | Build and run the ctest suite. |
 | `make package` | Build an installable package: an app bundle on macOS, a `.deb` via `make package deb` (or `PLATFORM=deb`). |
 | `make clean` | Remove `build/`. |
+| `make format` | Run `clang-format` in place on tracked C/C++/ObjC++ files changed relative to `origin/develop` (`FORMAT_BASE`), plus staged and unstaged ones. |
+| `make format-check` | Same file set, `--dry-run --Werror`. Stricter than CI, which checks only the lines a PR changes (`clang-format.yml`). |
+| `make tidy` | Run `clang-tidy` on the changed `.cpp` files using `build/compile_commands.json`; fails if the tool or the database is missing. |
 | `make help` | List targets. |
 
 `build`, `run`, `test`, and `package` take `PLATFORM=macos|linux|windows` (also positional: `make build macos`; default is the host) and `CONFIG=Debug|Release` (default `Debug`). Underneath are the CMake presets in `CMakePresets.json`; output goes to `build/`. Dependency installation is covered by Prism's [build instructions](https://prismlauncher.org/wiki/development/build-instructions).
@@ -67,11 +70,11 @@ Tests are QtTest executables in `tests/` (`*_test.cpp`, fixtures in `tests/testd
 | `tests/` | Unit tests (see above). |
 | `docs/` | GitHub Pages site deployed by `.github/workflows/pages.yml`. `docs/feed/feed.xml` is the Atom feed the launcher's news bar reads (`Launcher_NEWS_RSS_URL`). |
 | `nix/`, `flake.nix` | Nix packaging. |
-| `.github/workflows/` | CI: `build.yml` (main build), `clang-tidy.yml`, `nix.yml`, `pages.yml`, `release.yml`; several others are upstream automation that is inert or unused here. |
+| `.github/workflows/` | CI: `build.yml` (main build; runs ctest on Linux and macOS), `clang-format.yml` (changed lines only), `clang-tidy.yml`, `container.yml`, `nix.yml`, `pages.yml`, `release.yml`. Third-party actions are pinned to commit SHAs with the tag in a trailing comment. |
 
 ## Fork-specific facts
 
 - Branding lives in `program_info/CMakeLists.txt` and in the `Launcher_*` cache variables in the root `CMakeLists.txt`.
 - Upstream attribution stays: the PineconeMC, Prism Launcher, PolyMC, and MultiMC copyright lines, license headers, and credits.
 - Some identifiers deliberately keep the upstream name because they are functional infrastructure, not branding: `PineconeNetworkCheck`, the `pineconemc.ru` meta, FML-library, and login-callback URLs, the Ely.by client ID, and the `PrismLauncher/…` user agent. Rename them only when the task explicitly says to.
-- The API keys and client IDs in the root `CMakeLists.txt` are upstream's. Add no new secrets to the repository; new keys go in through CMake cache variables at configure time.
+- The API keys and client IDs in the root `CMakeLists.txt` are upstream's. Add no new secrets to the repository; new keys go in through CMake cache variables at configure time. In CI, `build.yml` passes the repository secrets `CURSEFORGE_API_KEY`, `MSA_CLIENT_ID`, and `IMGUR_CLIENT_ID` as `Launcher_*` overrides when they are set, and falls back to the committed defaults when they are not.

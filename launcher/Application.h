@@ -234,6 +234,9 @@ class Application : public QApplication {
 
    private:
     bool handleDataMigration(const QString& currentData, const QString& oldData, const QString& name, const QString& configFile) const;
+    // Chooses between the default data directory and the ElyPrismLauncher one that earlier versions shared in place,
+    // offering to copy the latter. Returns an empty string if startup has to stop.
+    QString resolveLegacyDataPath(const QString& defaultDataPath, QString& adjustedBy, bool& copiedLegacyData) const;
     bool createSetupWizard();
     void performMainStartupAction();
 

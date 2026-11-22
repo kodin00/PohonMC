@@ -32,6 +32,20 @@ bool safeText(const QJsonValue& v, int max = 256)
            !v.toString().contains(QRegularExpression(QStringLiteral("[\\x00-\\x1f\\x7f]")));
 }
 
+// Everything validate() requires of a single mod path, except uniqueness.
+bool validModPath(const QJsonValue& value)
+{
+    static const QRegularExpression filenamePattern(
+        QStringLiteral("^[^<>:\"/\\\\|?*\\x00-\\x1f]+\\.(jar|zip|litemod|nilmod)(\\.disabled)?$"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression reserved(QStringLiteral("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\.|$)"),
+                                             QRegularExpression::CaseInsensitiveOption);
+    const auto path = value.toString();
+    const auto filename = path.mid(5);
+    return safeText(value, 255) && path.startsWith("mods/") && filenamePattern.match(filename).hasMatch() && !filename.startsWith('.') &&
+           !filename.contains("..") && !reserved.match(filename).hasMatch() && FS::RemoveInvalidPathChars(path) == path;
+}
+
 bool hasSupportedDownloadUrl(const QJsonObject& file)
 {
     static const QSet<QString> hosts{ "cdn.modrinth.com", "edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net" };
@@ -72,10 +86,6 @@ bool SharePack::validate(const QJsonObject& obj, QString* error)
         return fail(error, QObject::tr("Too many mods in share code."));
     QSet<QString> paths;
     const QRegularExpression sha512(QStringLiteral("^[a-fA-F0-9]{128}$"));
-    const QRegularExpression filenamePattern(QStringLiteral("^[^<>:\"/\\\\|?*\\x00-\\x1f]+\\.(jar|zip|litemod|nilmod)(\\.disabled)?$"),
-                                             QRegularExpression::CaseInsensitiveOption);
-    const QRegularExpression reserved(QStringLiteral("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\.|$)"),
-                                      QRegularExpression::CaseInsensitiveOption);
     for (const auto& v : files) {
         if (!v.isObject())
             return fail(error, QObject::tr("Invalid mod entry."));
@@ -85,9 +95,7 @@ bool SharePack::validate(const QJsonObject& obj, QString* error)
         const bool manual = requiresManualDownload(f);
         if (f.contains("pohonManualDownload") && !manual)
             return fail(error, QObject::tr("Invalid manual download marker for %1.").arg(path));
-        if (!safeText(f.value("path"), 255) || !path.startsWith("mods/") || !filenamePattern.match(filename).hasMatch() ||
-            filename.startsWith('.') || filename.contains("..") || reserved.match(filename).hasMatch() ||
-            FS::RemoveInvalidPathChars(path) != path || paths.contains(path.toCaseFolded()))
+        if (!validModPath(f.value("path")) || paths.contains(path.toCaseFolded()))
             return fail(error, QObject::tr("Invalid or duplicate mod path: %1").arg(path));
         paths.insert(path.toCaseFolded());
 
@@ -116,6 +124,106 @@ bool SharePack::validate(const QJsonObject& obj, QString* error)
     return true;
 }
 
+QString SharePack::sanitizeText(const QString& text, int max)
+{
+    static const QRegularExpression controls(QStringLiteral("[\\x00-\\x1f\\x7f]"));
+    QString out = text;
+    out.remove(controls);
+    out = out.trimmed();
+    if (out.size() > max) {
+        out.truncate(max);
+        if (out.back().isHighSurrogate())
+            out.chop(1);
+        out = out.trimmed();
+    }
+    return out;
+}
+
+QJsonObject SharePack::sanitizeForExport(const QJsonObject& manifest, QStringList* skippedPaths)
+{
+    static const QRegularExpression sha512(QStringLiteral("^[a-fA-F0-9]{128}$"));
+    auto result = manifest;
+    auto name = sanitizeText(manifest.value("name").toString());
+    result["name"] = name.isEmpty() ? QStringLiteral("Modpack") : name;
+
+    QJsonArray files;
+    QSet<QString> seen;
+    for (const auto& value : manifest.value("files").toArray()) {
+        auto file = value.toObject();
+        const auto path = file.value("path").toString();
+        // A path is the only identity a mod has in the manifest, so an unusable one cannot be shared, not even manually.
+        if (!validModPath(file.value("path")) || seen.contains(path.toCaseFolded())) {
+            if (skippedPaths)
+                skippedPaths->append(sanitizeText(path));
+            continue;
+        }
+        seen.insert(path.toCaseFolded());
+
+        bool manual = requiresManualDownload(file);
+        if (!manual &&
+            !(ModrinthPackExportTask::isSupportedArchive(path.mid(5), Qt::CaseInsensitive) &&
+              sha512.match(file.value("hashes").toObject().value("sha512").toString()).hasMatch() && hasSupportedDownloadUrl(file)))
+            manual = true;
+        if (manual) {
+            file.remove("downloads");
+            file.remove("hashes");
+            file["pohonManualDownload"] = true;
+        } else {
+            file.remove("pohonManualDownload");
+        }
+        const auto env = file.value("env").toObject();
+        if (file.contains("env") && (!env.isEmpty() && (env.value("client") != "required" ||
+                                                        (env.value("server") != "required" && env.value("server") != "unsupported"))))
+            file.remove("env");
+        const auto server = file.value("pohonServerRequirement");
+        if (!server.isUndefined() && server != "required" && server != "optional" && server != "unknown")
+            file.remove("pohonServerRequirement");
+        for (auto key : { "name", "version" }) {
+            if (!file.contains(key))
+                continue;
+            const auto text = sanitizeText(file.value(key).toString());
+            if (text.isEmpty())
+                file.remove(key);
+            else
+                file[key] = text;
+        }
+        files.append(file);
+    }
+    result["files"] = files;
+    return result;
+}
+
+QJsonObject SharePack::requiredOnly(const QJsonObject& manifest)
+{
+    QJsonArray files;
+    QHash<QString, int> indexByPath;  // case-folded normalised path -> index in `files`
+    QList<bool> wasEnabled;
+    for (const auto& value : manifest.value("files").toArray()) {
+        auto file = value.toObject();
+        if (file.value("pohonServerRequirement").toString() != "required")
+            continue;
+        auto path = file.value("path").toString();
+        const bool disabled = path.endsWith(".disabled", Qt::CaseInsensitive);
+        if (disabled) {
+            path.chop(9);
+            file.insert("path", path);
+        }
+        const auto key = path.toCaseFolded();
+        const auto existing = indexByPath.constFind(key);
+        if (existing == indexByPath.cend()) {
+            indexByPath.insert(key, files.size());
+            wasEnabled.append(!disabled);
+            files.append(file);
+        } else if (!disabled && !wasEnabled[*existing]) {
+            files.replace(*existing, file);
+            wasEnabled[*existing] = true;
+        }
+    }
+    auto result = manifest;
+    result.insert("files", files);
+    return result;
+}
+
 QString SharePack::encode(const QJsonObject& manifest, QString* error)
 {
     if (!validate(manifest, error))
@@ -130,7 +238,16 @@ QString SharePack::encode(const QJsonObject& manifest, QString* error)
 
 bool SharePack::decode(const QString& code, QJsonObject* manifest, QString* error)
 {
-    const QString trimmed = code.trimmed();
+    // Chat apps and mail clients wrap or pad codes. No whitespace or invisible format character
+    // (zero-width space, BOM, ...) belongs to the alphabet, so dropping them is unambiguous.
+    // The raw cap only bounds the work done here; the real cap applies after stripping.
+    QString trimmed;
+    if (code.size() <= MaxCode * 2) {
+        trimmed.reserve(code.size());
+        for (const QChar c : code)
+            if (!c.isSpace() && c.category() != QChar::Other_Format)
+                trimmed.append(c);
+    }
     if (!manifest || !trimmed.startsWith(Prefix) || trimmed.size() > MaxCode)
         return fail(error, QObject::tr("Invalid or unsupported share code."));
     auto encoded = trimmed.mid(Prefix.size()).toLatin1();
@@ -240,16 +357,19 @@ void SharePackExportTask::executeTask()
             file["pohonServerRequirement"] = ModFolderModel::serverRequirement(mods, filename);
             for (const auto* mod : allMods) {
                 if (mod->fileinfo().fileName() == filename) {
-                    if (!mod->name().trimmed().isEmpty() && mod->name().size() <= 256)
-                        file["name"] = mod->name();
-                    if (!mod->version().trimmed().isEmpty() && mod->version().size() <= 256)
-                        file["version"] = mod->version();
+                    // Raw metadata may hold control characters or be overlong; sanitizeForExport() cleans both.
+                    file["name"] = mod->name();
+                    file["version"] = mod->version();
                     break;
                 }
             }
             files[i] = file;
         }
         m_manifest["files"] = files;
+        QStringList skipped;
+        m_manifest = SharePack::sanitizeForExport(m_manifest, &skipped);
+        for (const auto& path : skipped)
+            logWarning(tr("%1 cannot be shared because its file name is not supported, so it was left out of the share code.").arg(path));
         QString error;
         m_code = SharePack::encode(m_manifest, &error);
         if (m_code.isEmpty()) {

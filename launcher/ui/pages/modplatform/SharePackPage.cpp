@@ -160,18 +160,7 @@ bool SharePackPage::prepareInstall(bool requiredOnly)
 
     auto manifest = m_manifest;
     if (requiredOnly) {
-        QJsonArray files;
-        const auto allFiles = manifest.value("files").toArray();
-        for (const auto& value : allFiles) {
-            auto file = value.toObject();
-            if (file.value("pohonServerRequirement").toString() != "required")
-                continue;
-            auto path = file.value("path").toString();
-            if (path.endsWith(".disabled"))
-                file.insert("path", path.chopped(9));
-            files.append(file);
-        }
-        manifest.insert("files", files);
+        manifest = SharePack::requiredOnly(manifest);
         QString error;
         if (!SharePack::validate(manifest, &error)) {
             m_summary->setText(error);

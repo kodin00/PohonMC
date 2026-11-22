@@ -39,33 +39,44 @@ runs:
   using: composite
 
   steps:
+    # security(1) and notarytool only take these passwords as arguments or from
+    # an interactive prompt, so they stay on argv, but they reach the script
+    # through env rather than being pasted into its source.
     - name: Fetch codesign certificate
       shell: bash
+      env:
+        APPLE_CODESIGN_CERT: ${{ inputs.apple-codesign-cert }}
+        APPLE_CODESIGN_PASSWORD: ${{ inputs.apple-codesign-password }}
+        APPLE_CODESIGN_ID: ${{ inputs.apple-codesign-id }}
       run: |
-        echo '${{ inputs.apple-codesign-cert }}' | base64 --decode > codesign.p12
-        if [ -n '${{ inputs.apple-codesign-id }}' ]; then
-          security create-keychain -p '${{ inputs.apple-codesign-password }}' build.keychain
+        if [ -n "$APPLE_CODESIGN_ID" ]; then
+          # Keep the .p12 name: security import infers the format from it
+          certdir="$(mktemp -d "$RUNNER_TEMP/codesign.XXXXXX")"
+          trap 'rm -rf "$certdir"' EXIT
+          (umask 077 && printf '%s\n' "$APPLE_CODESIGN_CERT" | base64 --decode > "$certdir/codesign.p12")
+          security create-keychain -p "$APPLE_CODESIGN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
-          security unlock-keychain -p '${{ inputs.apple-codesign-password }}' build.keychain
-          security import codesign.p12 -k build.keychain -P '${{ inputs.apple-codesign-password }}' -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k '${{ inputs.apple-codesign-password }}' build.keychain
+          security unlock-keychain -p "$APPLE_CODESIGN_PASSWORD" build.keychain
+          security import "$certdir/codesign.p12" -k build.keychain -P "$APPLE_CODESIGN_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_CODESIGN_PASSWORD" build.keychain
         else
-          echo ":warning: Using ad-hoc code signing for macOS, as certificate was not present." >> $GITHUB_STEP_SUMMARY
+          echo ":warning: Using ad-hoc code signing for macOS, as certificate was not present." >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Package
       shell: bash
       env:
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
         INSTALL_DIR: install
+        APPLE_CODESIGN_ID: ${{ inputs.apple-codesign-id }}
       run: |
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }}
+        cmake --install "$BUILD_DIR" --config "$BUILD_TYPE"
 
-        cd ${{ env.INSTALL_DIR }}
+        cd "$INSTALL_DIR"
         chmod +x "PohonMC.app/Contents/MacOS/PohonMC"
 
-        if [ -n '${{ inputs.apple-codesign-id }}' ]; then
-          APPLE_CODESIGN_ID='${{ inputs.apple-codesign-id }}'
+        if [ -n "$APPLE_CODESIGN_ID" ]; then
           ENTITLEMENTS_FILE='../program_info/App.entitlements'
         else
           APPLE_CODESIGN_ID='-'
@@ -78,20 +89,23 @@ runs:
       shell: bash
       env:
         INSTALL_DIR: install
+        APPLE_NOTARIZE_APPLE_ID: ${{ inputs.apple-notarize-apple-id }}
+        APPLE_NOTARIZE_TEAM_ID: ${{ inputs.apple-notarize-team-id }}
+        APPLE_NOTARIZE_PASSWORD: ${{ inputs.apple-notarize-password }}
       run: |
-        cd ${{ env.INSTALL_DIR }}
+        cd "$INSTALL_DIR"
 
-        if [ -n '${{ inputs.apple-notarize-password }}' ]; then
+        if [ -n "$APPLE_NOTARIZE_PASSWORD" ]; then
           ditto -c -k --sequesterRsrc --keepParent "PohonMC.app" ../PohonMC.zip
           xcrun notarytool submit ../PohonMC.zip \
             --wait --progress \
-            --apple-id '${{ inputs.apple-notarize-apple-id }}' \
-            --team-id '${{ inputs.apple-notarize-team-id }}' \
-            --password '${{ inputs.apple-notarize-password }}'
+            --apple-id "$APPLE_NOTARIZE_APPLE_ID" \
+            --team-id "$APPLE_NOTARIZE_TEAM_ID" \
+            --password "$APPLE_NOTARIZE_PASSWORD"
 
           xcrun stapler staple "PohonMC.app"
         else
-          echo ":warning: Skipping notarization as credentials are not present." >> $GITHUB_STEP_SUMMARY
+          echo ":warning: Skipping notarization as credentials are not present." >> "$GITHUB_STEP_SUMMARY"
         fi
         ditto -c -k --sequesterRsrc --keepParent "PohonMC.app" ../PohonMC.zip
 
@@ -99,8 +113,9 @@ runs:
       shell: bash
       env:
         INSTALL_DIR: install
+        VERSION: ${{ inputs.version }}
       run: |
-        cd ${{ env.INSTALL_DIR }}
+        cd "$INSTALL_DIR"
 
         staging=$(mktemp -d "${RUNNER_TEMP}/pohonmc-dmg.XXXXXX")
         log="$staging.log"
@@ -110,7 +125,7 @@ runs:
 
         for attempt in 1 2 3 4 5; do
           if hdiutil create \
-              -volname "PohonMC ${{ inputs.version }}" \
+              -volname "PohonMC $VERSION" \
               -srcfolder "$staging" \
               -ov -format ULMO \
               "../PohonMC.dmg" > "$log" 2>&1; then
@@ -127,32 +142,36 @@ runs:
 
     - name: Make Sparkle signature
       shell: bash
+      env:
+        SPARKLE_ED25519_KEY: ${{ inputs.sparkle-ed25519-key }}
       run: |
-        if [ '${{ inputs.sparkle-ed25519-key }}' != '' ]; then
-          echo '${{ inputs.sparkle-ed25519-key }}' > ed25519-priv.pem
-          signature_zip=$(/opt/homebrew/opt/openssl@3/bin/openssl pkeyutl -sign -rawin -in ${{ github.workspace }}/PohonMC.zip -inkey ed25519-priv.pem | openssl base64 | tr -d \\n)
-          signature_dmg=$(/opt/homebrew/opt/openssl@3/bin/openssl pkeyutl -sign -rawin -in ${{ github.workspace }}/PohonMC.dmg -inkey ed25519-priv.pem | openssl base64 | tr -d \\n)
-          rm ed25519-priv.pem
-          cat >> $GITHUB_STEP_SUMMARY << EOF
+        if [ -n "$SPARKLE_ED25519_KEY" ]; then
+          keydir="$(mktemp -d "$RUNNER_TEMP/sparkle.XXXXXX")"
+          trap 'rm -rf "$keydir"' EXIT
+          (umask 077 && printf '%s\n' "$SPARKLE_ED25519_KEY" > "$keydir/ed25519-priv.pem")
+          signature_zip=$(/opt/homebrew/opt/openssl@3/bin/openssl pkeyutl -sign -rawin -in "$GITHUB_WORKSPACE/PohonMC.zip" -inkey "$keydir/ed25519-priv.pem" | openssl base64 | tr -d \\n)
+          signature_dmg=$(/opt/homebrew/opt/openssl@3/bin/openssl pkeyutl -sign -rawin -in "$GITHUB_WORKSPACE/PohonMC.dmg" -inkey "$keydir/ed25519-priv.pem" | openssl base64 | tr -d \\n)
+          rm -rf "$keydir"
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
         ### Artifact Information :information_source:
         - :memo: Sparkle Signature (ed25519): \`$signature_zip\` (ZIP)
         - :memo: Sparkle Signature (ed25519): \`$signature_dmg\` (DMG)
         EOF
         else
-          cat >> $GITHUB_STEP_SUMMARY << EOF
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
         ### Artifact Information :information_source:
         - :warning: Sparkle Signature (ed25519): No private key available (likely a pull request or fork)
         EOF
         fi
 
     - name: Upload binary tarball
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ inputs.artifact-name }}-${{ inputs.version }}-${{ inputs.build-type }}
         path: PohonMC.zip
 
     - name: Upload disk image
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ inputs.artifact-name }}-${{ inputs.version }}-${{ inputs.build-type }}.dmg
         path: PohonMC.dmg

@@ -95,7 +95,10 @@
 #include <QIcon>
 #include <QLibraryInfo>
 #include <QList>
+#include <QLockFile>
+#include <QMessageBox>
 #include <QNetworkAccessManager>
+#include <QPushButton>
 #include <QStringList>
 #include <QStringLiteral>
 #include <QStyleFactory>
@@ -380,6 +383,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
     QString adjustedBy;
     QString dataPath;
+    bool copiedLegacyData = false;
     // change folder
     QString dataDirEnv;
     QString dirParam = parser.value("dir");
@@ -414,13 +418,14 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
             m_portable = true;
         }
 #endif
-        // Reuse an existing ElyPrismLauncher data directory when no new default exists.
-        // Explicit paths and portable installations remain authoritative.
-        if (!m_portable && !DesktopServices::isSnap() && !QDir(dataPath).exists()) {
-            const QString oldDataPath = QDir(FS::PathCombine(dataPath, "..", "ElyPrismLauncher")).absolutePath();
-            if (QFile::exists(FS::PathCombine(oldDataPath, "elyprismlauncher.cfg"))) {
-                dataPath = oldDataPath;
-                adjustedBy = "Existing ElyPrismLauncher data path";
+        // Earlier versions adopted an existing ElyPrismLauncher data directory in place, sharing it with that launcher.
+        // Offer to copy it into a directory of our own instead. Explicit paths, portable installations and Snap are
+        // authoritative and skip this.
+        if (!m_portable && !DesktopServices::isSnap()) {
+            dataPath = resolveLegacyDataPath(dataPath, adjustedBy, copiedLegacyData);
+            if (dataPath.isEmpty()) {
+                m_status = Application::Failed;
+                return;
             }
         }
     }
@@ -587,7 +592,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         qInfo() << "<> Log initialized.";
     }
 
-    {
+    // Data copied from ElyPrismLauncher this run already carries the user's answers to the offers below.
+    if (!copiedLegacyData) {
         auto migrated = handleDataMigration(
             dataPath, FS::PathCombine(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation), "../../PolyMC"), "PolyMC",
             "polymc.cfg");
@@ -2010,23 +2016,11 @@ bool Application::handleDataMigration(const QString& currentData,
 
     if (!currentExists) {
         // Migrate!
-        using namespace Filters;
-
-        QList<Filter> filters;
-        filters.append(equals(configFile));
-        filters.append(equals(BuildConfig.LAUNCHER_CONFIGFILE));  // it's possible that we already used that directory before
-        filters.append(startsWith("logs/"));
-        filters.append(equals("accounts.json"));
-        filters.append(startsWith("accounts/"));
-        filters.append(startsWith("assets/"));
-        filters.append(startsWith("icons/"));
-        filters.append(startsWith("instances/"));
-        filters.append(startsWith("libraries/"));
-        filters.append(startsWith("mods/"));
-        filters.append(startsWith("themes/"));
+        // it's possible that we already used that directory before, so also take our own config file
+        auto filter = DataMigration::launcherDataFilter({ configFile, BuildConfig.LAUNCHER_CONFIGFILE });
 
         ProgressDialog diag;
-        DataMigrationTask task(oldData, currentData, any(std::move(filters)));
+        DataMigrationTask task(oldData, currentData, std::move(filter));
         if (diag.execWithTask(&task)) {
             qDebug() << "<> Migration succeeded";
             setDoNotMigrate();
@@ -2038,6 +2032,138 @@ bool Application::handleDataMigration(const QString& currentData,
         qWarning() << "<> Migration was skipped, due to existing data";
     }
     return true;
+}
+
+QString Application::resolveLegacyDataPath(const QString& defaultDataPath, QString& adjustedBy, bool& copiedLegacyData) const
+{
+    using namespace DataMigration;
+
+    // ElyPrismLauncher shares our data layout; earlier versions of this launcher used its directory in place and wrote
+    // their own config file into it, so either config file marks it as live data.
+    static const QString legacyName = QStringLiteral("ElyPrismLauncher");
+    const QString legacyDataPath = QDir(FS::PathCombine(defaultDataPath, "..", legacyName)).absolutePath();
+    const QStringList legacyConfigFiles = { QStringLiteral("elyprismlauncher.cfg"), BuildConfig.LAUNCHER_CONFIGFILE };
+    // Lives in the legacy directory so that the answer is remembered although our own directory is never created.
+    const QString declineMarkerName = BuildConfig.LAUNCHER_NAME + "_nomigrate.txt";
+    const QString declineMarkerPath = FS::PathCombine(legacyDataPath, declineMarkerName);
+
+    auto useLegacyInPlace = [&](const QString& reason) {
+        adjustedBy = QString("Existing %1 data path (%2)").arg(legacyName, reason);
+        return legacyDataPath;
+    };
+
+    auto action = decideLegacyDataAction(defaultDataPath, legacyDataPath, legacyConfigFiles, declineMarkerName);
+    if (action == LegacyDataAction::UseDefault)
+        return defaultDataPath;
+    if (action == LegacyDataAction::UseLegacyInPlace)
+        return useLegacyInPlace("copy declined earlier");
+
+    // Only one process may ask and copy at a time. This runs before the single-instance check further down, so a
+    // second launch (including a --launch hand-off) arriving while the question is open must not ask or copy again.
+    const QString defaultBase = QDir::cleanPath(QDir(defaultDataPath).absolutePath());
+    QLockFile migrationLock(defaultBase + ".migration.lock");
+    migrationLock.setStaleLockTime(0);  // the question may stay open indefinitely; a dead owner is still detected
+    if (!migrationLock.tryLock(0)) {
+        if (migrationLock.error() == QLockFile::LockFailedError) {
+            std::cerr << "Another copy of the launcher is setting up its data folder, exiting.\n";
+            QMessageBox::information(nullptr, BuildConfig.LAUNCHER_DISPLAYNAME,
+                                     tr("Another copy of %1 is setting up its data folder. Finish that first, then start %1 again.")
+                                         .arg(BuildConfig.LAUNCHER_DISPLAYNAME));
+            return {};
+        }
+        // Could not even create the lock file; the copy below would fail the same way and fall back safely.
+        qWarning() << "Could not create the data migration lock" << migrationLock.fileName();
+    }
+
+    // Another process may have finished while we waited for the lock.
+    action = decideLegacyDataAction(defaultDataPath, legacyDataPath, legacyConfigFiles, declineMarkerName);
+    if (action == LegacyDataAction::UseDefault)
+        return defaultDataPath;
+    if (action == LegacyDataAction::UseLegacyInPlace)
+        return useLegacyInPlace("copy declined earlier");
+
+    const bool sharedByUs = QFileInfo(FS::PathCombine(legacyDataPath, BuildConfig.LAUNCHER_CONFIGFILE)).isFile();
+
+    QString message;
+    if (sharedByUs) {
+        message = tr("%1 has been keeping its data in the %2 folder, shared with %2:\n%3\n\n"
+                     "Two launchers changing the same instances, accounts and settings can break each other. "
+                     "Do you want to copy everything into a folder of its own for %1?\n%4")
+                      .arg(BuildConfig.LAUNCHER_DISPLAYNAME, legacyName, QDir::toNativeSeparators(legacyDataPath),
+                           QDir::toNativeSeparators(defaultBase));
+    } else {
+        message = tr("It looks like you used %2 before:\n%3\n\n"
+                     "Do you want to copy its instances, accounts and settings into a folder of its own for %1?\n%4")
+                      .arg(BuildConfig.LAUNCHER_DISPLAYNAME, legacyName, QDir::toNativeSeparators(legacyDataPath),
+                           QDir::toNativeSeparators(defaultBase));
+    }
+
+    QMessageBox box(QMessageBox::Question, BuildConfig.LAUNCHER_DISPLAYNAME, message);
+    box.setInformativeText(tr("Copying does not change the %1 folder. Close %1 before you continue.\n\n"
+                              "If you share the folder, %2 will not ask again. Delete %3 to be asked again.")
+                               .arg(legacyName, BuildConfig.LAUNCHER_DISPLAYNAME, QDir::toNativeSeparators(declineMarkerPath)));
+    QPushButton* copyButton = box.addButton(tr("Copy"), QMessageBox::AcceptRole);
+    QPushButton* emptyButton = nullptr;
+    // Existing users would find an empty launcher, so they only get to copy or keep sharing.
+    if (!sharedByUs)
+        emptyButton = box.addButton(tr("Start Empty"), QMessageBox::ActionRole);
+    QPushButton* shareButton = box.addButton(sharedByUs ? tr("Keep Sharing") : tr("Share Folder"), QMessageBox::ActionRole);
+    box.setDefaultButton(copyButton);
+    box.exec();
+    auto clicked = box.clickedButton();
+
+    if (emptyButton && clicked == emptyButton) {
+        qDebug() << "<> Starting with an empty data folder instead of copying" << legacyName << "data";
+        return defaultDataPath;
+    }
+    if (clicked == shareButton) {
+        qDebug() << "<> Copying" << legacyName << "data declined, keeping the shared folder";
+        QFile marker(declineMarkerPath);
+        if (!marker.open(QIODevice::WriteOnly))
+            qWarning() << "Failed to open" << marker.fileName() << "for writing:" << marker.errorString();
+        return useLegacyInPlace("copy declined");
+    }
+    if (clicked != copyButton) {
+        // The box was dismissed without an answer: change nothing and ask again next time.
+        return useLegacyInPlace("question dismissed");
+    }
+
+    // Copy into a sibling staging folder and rename it only once everything arrived, so an interrupted or failed copy
+    // never looks like a finished data folder.
+    const QString stagingPath = stagingPathFor(defaultDataPath);
+    QString failure;
+    if (QFileInfo::exists(stagingPath) && !FS::deletePath(stagingPath)) {
+        failure = tr("A leftover partial copy at %1 could not be removed.").arg(QDir::toNativeSeparators(stagingPath));
+    } else if (!FS::ensureFolderPathExists(stagingPath)) {
+        failure = tr("The folder %1 could not be created.").arg(QDir::toNativeSeparators(stagingPath));
+    } else {
+        ProgressDialog diag;
+        DataMigrationTask task(legacyDataPath, stagingPath, sameLayoutDataFilter(legacyConfigFiles));
+        diag.execWithTask(&task);
+        if (!task.wasSuccessful()) {
+            failure = task.failReason();
+            if (failure.isEmpty())
+                failure = tr("The copy did not finish.");
+        } else {
+            commitStagedCopy(stagingPath, defaultBase, &failure);
+        }
+    }
+
+    if (!failure.isEmpty()) {
+        qWarning() << "<> Copying" << legacyName << "data failed:" << failure;
+        if (QFileInfo::exists(stagingPath) && !FS::deletePath(stagingPath))
+            qWarning() << "Could not remove the partial copy at" << stagingPath;
+        QMessageBox::critical(nullptr, BuildConfig.LAUNCHER_DISPLAYNAME,
+                              tr("Copying the %1 data failed: %2\n\n"
+                                 "%3 keeps using the %1 folder for now and will offer to copy it again next time.")
+                                  .arg(legacyName, failure, BuildConfig.LAUNCHER_DISPLAYNAME));
+        return useLegacyInPlace("copy failed");
+    }
+
+    qDebug() << "<> Copied" << legacyName << "data to" << defaultBase;
+    copiedLegacyData = true;
+    adjustedBy = QString("Persistent data path (copied from %1)").arg(legacyName);
+    return defaultDataPath;
 }
 
 void Application::triggerUpdateCheck()

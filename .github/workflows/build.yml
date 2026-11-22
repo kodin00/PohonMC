@@ -33,6 +33,29 @@ on:
       - ".github/actions/package/**"
       - ".github/actions/setup-dependencies/**"
   pull_request:
+    paths:
+      # File types
+      - "**.cpp"
+      - "**.h"
+      - "**.java"
+      - "**.ui"
+
+      # Directories
+      - "buildconfig/**"
+      - "cmake/**"
+      - "launcher/**"
+      - "libraries/**"
+      - "program_info/**"
+      - "tests/**"
+
+      # Files
+      - "CMakeLists.txt"
+      - "COPYING.md"
+
+      # Workflows
+      - ".github/workflows/build.yml"
+      - ".github/actions/package/**"
+      - ".github/actions/setup-dependencies/**"
   workflow_call:
     inputs:
       build-type:
@@ -128,7 +151,7 @@ jobs:
       ##
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           submodules: true
 
@@ -159,24 +182,47 @@ jobs:
 
       - name: Cache vcpkg binaries
         if: ${{ steps.vcpkg-cache.outcome == 'success' }}
-        uses: actions/cache@v5.0.5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-${{ matrix.artifact-name }}-${{ steps.vcpkg-cache.outputs.image-version }}-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-ports/**', 'cmake/vcpkg-triplets/**') }}
           restore-keys: |
             vcpkg-${{ matrix.artifact-name }}-
 
+      # The keys committed in CMakeLists.txt are upstream's. Repository secrets
+      # with these names replace them; an unset secret (including on pull
+      # requests from forks) leaves the CMake default in place.
       - name: Configure project
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MSA_CLIENT_ID: ${{ secrets.MSA_CLIENT_ID }}
+          IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
         run: |
-          cmake --preset "$CMAKE_PRESET"
+          key_args=()
+          if [ -n "$CURSEFORGE_API_KEY" ]; then
+            key_args+=("-DLauncher_CURSEFORGE_API_KEY=$CURSEFORGE_API_KEY")
+          fi
+          if [ -n "$MSA_CLIENT_ID" ]; then
+            key_args+=("-DLauncher_MSA_CLIENT_ID=$MSA_CLIENT_ID")
+          fi
+          if [ -n "$IMGUR_CLIENT_ID" ]; then
+            key_args+=("-DLauncher_IMGUR_CLIENT_ID=$IMGUR_CLIENT_ID")
+          fi
+          # the +-expansion keeps an empty array safe on bash 3.2 (macOS)
+          cmake --preset "$CMAKE_PRESET" ${key_args[@]+"${key_args[@]}"}
 
       - name: Run build
         run: |
           cmake --build --preset "$CMAKE_PRESET" --config "$BUILD_TYPE"
 
-      #- name: Run tests
-      #  run: |
-      #    ctest --preset "$CMAKE_PRESET" --build-config "$BUILD_TYPE"
+      # Native runners only (the arm64 entries run on arm64 hosts); Windows is
+      # left out until the test binaries are known to find their DLLs there.
+      - name: Run tests
+        if: ${{ runner.os != 'Windows' }}
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --preset "$CMAKE_PRESET" --build-config "$BUILD_TYPE"
 
       ##
       # PACKAGE

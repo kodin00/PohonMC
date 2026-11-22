@@ -8,8 +8,52 @@ on:
 permissions: {}
 
 jobs:
+  verify_version:
+    name: Verify tag matches version
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          sparse-checkout: CMakeLists.txt
+          sparse-checkout-cone-mode: false
+
+      # The in-app updater compares release tags against the version compiled
+      # in from CMakeLists.txt, so a tag that disagrees with it must not ship.
+      - name: Compare tag with CMake version
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          tag_name="${REF#refs/tags/}"
+
+          read_component() {
+            sed -nE "s/^[[:space:]]*set\(Launcher_VERSION_$1[[:space:]]+([0-9]+)[[:space:]]*\).*/\1/p" CMakeLists.txt
+          }
+          major="$(read_component MAJOR)"
+          minor="$(read_component MINOR)"
+          patch="$(read_component PATCH)"
+
+          for part in "$major" "$minor" "$patch"; do
+            if ! [[ "$part" =~ ^[0-9]+$ ]]; then
+              echo "::error file=CMakeLists.txt::Could not read exactly one numeric Launcher_VERSION_MAJOR, _MINOR and _PATCH"
+              exit 1
+            fi
+          done
+
+          expected="$major.$minor.$patch"
+          echo "Tag: $tag_name"
+          echo "CMake version: $expected"
+          if [ "$tag_name" != "$expected" ]; then
+            echo "::error file=CMakeLists.txt::The pushed tag does not match Launcher_VERSION_MAJOR.MINOR.PATCH; retag or bump the version"
+            exit 1
+          fi
+
   build_release:
     name: Build Release
+    needs: verify_version
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read
@@ -29,29 +73,32 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           submodules: "true"
           path: "PohonMC-source"
+          persist-credentials: false
       - name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       - name: Grab and store version
+        env:
+          REF: ${{ github.ref }}
         run: |
-          tag_name=$(echo ${{ github.ref }} | grep -oE "[^/]+$")
-          echo "VERSION=$tag_name" >> $GITHUB_ENV
+          tag_name="${REF##*/}"
+          echo "VERSION=$tag_name" >> "$GITHUB_ENV"
       - name: Package artifacts properly
         run: |
-          mv ${{ github.workspace }}/PohonMC-source PohonMC-${{ env.VERSION }}
-          mv PohonMC-Linux-Qt6-Portable*/PohonMC-portable.tar.gz PohonMC-Linux-Qt6-Portable-${{ env.VERSION }}.tar.gz
-          mv PohonMC-Linux-aarch64-Qt6-Portable*/PohonMC-portable.tar.gz PohonMC-Linux-aarch64-Qt6-Portable-${{ env.VERSION }}.tar.gz
+          mv "$GITHUB_WORKSPACE/PohonMC-source" "PohonMC-$VERSION"
+          mv PohonMC-Linux-Qt6-Portable*/PohonMC-portable.tar.gz "PohonMC-Linux-Qt6-Portable-$VERSION.tar.gz"
+          mv PohonMC-Linux-aarch64-Qt6-Portable*/PohonMC-portable.tar.gz "PohonMC-Linux-aarch64-Qt6-Portable-$VERSION.tar.gz"
           mv PohonMC-*.AppImage/PohonMC-*-x86_64.AppImage PohonMC-Linux-x86_64.AppImage
           mv PohonMC-*.AppImage.zsync/PohonMC-*-x86_64.AppImage.zsync PohonMC-Linux-x86_64.AppImage.zsync
           mv PohonMC-*.AppImage/PohonMC-*-aarch64.AppImage PohonMC-Linux-aarch64.AppImage
           mv PohonMC-*.AppImage.zsync/PohonMC-*-aarch64.AppImage.zsync PohonMC-Linux-aarch64.AppImage.zsync
-          mv PohonMC-macOS*/PohonMC.zip PohonMC-macOS-${{ env.VERSION }}.zip
-          mv PohonMC-macOS*/PohonMC.dmg PohonMC-macOS-${{ env.VERSION }}.dmg
+          mv PohonMC-macOS*/PohonMC.zip "PohonMC-macOS-$VERSION.zip"
+          mv PohonMC-macOS*/PohonMC.dmg "PohonMC-macOS-$VERSION.dmg"
 
-          tar --exclude='.git' -czf PohonMC-${{ env.VERSION }}.tar.gz PohonMC-${{ env.VERSION }}
+          tar --exclude='.git' -czf "PohonMC-$VERSION.tar.gz" "PohonMC-$VERSION"
 
           for d in PohonMC-Windows-MSVC*; do
             cd "${d}" || continue
@@ -63,8 +110,8 @@ jobs:
             test -z "${LEGACY}" || NAME="${NAME}-Legacy"
             test -z "${ARM64}" || NAME="${NAME}-arm64"
             test -z "${PORT}" || NAME="${NAME}-Portable"
-            test -z "${INST}" || mv PohonMC-*.exe ../${NAME}-Setup-${{ env.VERSION }}.exe
-            test -n "${INST}" || zip -r -9 "../${NAME}-${{ env.VERSION }}.zip" *
+            test -z "${INST}" || mv PohonMC-*.exe "../${NAME}-Setup-${VERSION}.exe"
+            test -n "${INST}" || zip -r -9 "../${NAME}-${VERSION}.zip" *
             cd ..
           done
 
@@ -74,8 +121,8 @@ jobs:
             PORT="$(echo -n ${d} | grep -o Portable || true)"
             NAME="PohonMC-Windows-MinGW-w64"
             test -z "${PORT}" || NAME="${NAME}-Portable"
-            test -z "${INST}" || mv PohonMC-*.exe ../${NAME}-Setup-${{ env.VERSION }}.exe
-            test -n "${INST}" || zip -r -9 "../${NAME}-${{ env.VERSION }}.zip" *
+            test -z "${INST}" || mv PohonMC-*.exe "../${NAME}-Setup-${VERSION}.exe"
+            test -n "${INST}" || zip -r -9 "../${NAME}-${VERSION}.zip" *
             cd ..
           done
 
@@ -85,14 +132,59 @@ jobs:
             PORT="$(echo -n ${d} | grep -o Portable || true)"
             NAME="PohonMC-Windows-MinGW-arm64"
             test -z "${PORT}" || NAME="${NAME}-Portable"
-            test -z "${INST}" || mv PohonMC-*.exe ../${NAME}-Setup-${{ env.VERSION }}.exe
-            test -n "${INST}" || zip -r -9 "../${NAME}-${{ env.VERSION }}.zip" *
+            test -z "${INST}" || mv PohonMC-*.exe "../${NAME}-Setup-${VERSION}.exe"
+            test -n "${INST}" || zip -r -9 "../${NAME}-${VERSION}.zip" *
             cd ..
           done
 
+      # Single source of truth for the release assets: SHA256SUMS covers
+      # exactly these files and the release step uploads them plus SHA256SUMS.
+      - name: Compute checksums
+        id: checksums
+        run: |
+          assets=(
+            PohonMC-Linux-x86_64.AppImage
+            PohonMC-Linux-x86_64.AppImage.zsync
+            PohonMC-Linux-aarch64.AppImage
+            PohonMC-Linux-aarch64.AppImage.zsync
+            "PohonMC-Linux-Qt6-Portable-$VERSION.tar.gz"
+            "PohonMC-Linux-aarch64-Qt6-Portable-$VERSION.tar.gz"
+            "PohonMC-Windows-MinGW-w64-$VERSION.zip"
+            "PohonMC-Windows-MinGW-w64-Portable-$VERSION.zip"
+            "PohonMC-Windows-MinGW-w64-Setup-$VERSION.exe"
+            "PohonMC-Windows-MinGW-arm64-$VERSION.zip"
+            "PohonMC-Windows-MinGW-arm64-Portable-$VERSION.zip"
+            "PohonMC-Windows-MinGW-arm64-Setup-$VERSION.exe"
+            "PohonMC-Windows-MSVC-arm64-$VERSION.zip"
+            "PohonMC-Windows-MSVC-arm64-Portable-$VERSION.zip"
+            "PohonMC-Windows-MSVC-arm64-Setup-$VERSION.exe"
+            "PohonMC-Windows-MSVC-$VERSION.zip"
+            "PohonMC-Windows-MSVC-Portable-$VERSION.zip"
+            "PohonMC-Windows-MSVC-Setup-$VERSION.exe"
+            "PohonMC-macOS-$VERSION.zip"
+            "PohonMC-macOS-$VERSION.dmg"
+            "PohonMC-$VERSION.tar.gz"
+          )
+
+          sha256sum -- "${assets[@]}" > SHA256SUMS
+          cat SHA256SUMS
+
+          {
+            echo "files<<RELEASE_ASSETS_EOF"
+            printf '%s\n' "${assets[@]}" SHA256SUMS
+            echo "RELEASE_ASSETS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Keep checksums for attestation
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-checksums
+          path: SHA256SUMS
+          if-no-files-found: error
+
       - name: Create release
         id: create_release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref }}
@@ -100,25 +192,24 @@ jobs:
           draft: true
           prerelease: false
           fail_on_unmatched_files: true
-          files: |
-            PohonMC-Linux-x86_64.AppImage
-            PohonMC-Linux-x86_64.AppImage.zsync
-            PohonMC-Linux-aarch64.AppImage
-            PohonMC-Linux-aarch64.AppImage.zsync
-            PohonMC-Linux-Qt6-Portable-${{ env.VERSION }}.tar.gz
-            PohonMC-Linux-aarch64-Qt6-Portable-${{ env.VERSION }}.tar.gz
-            PohonMC-Windows-MinGW-w64-${{ env.VERSION }}.zip
-            PohonMC-Windows-MinGW-w64-Portable-${{ env.VERSION }}.zip
-            PohonMC-Windows-MinGW-w64-Setup-${{ env.VERSION }}.exe
-            PohonMC-Windows-MinGW-arm64-${{ env.VERSION }}.zip
-            PohonMC-Windows-MinGW-arm64-Portable-${{ env.VERSION }}.zip
-            PohonMC-Windows-MinGW-arm64-Setup-${{ env.VERSION }}.exe
-            PohonMC-Windows-MSVC-arm64-${{ env.VERSION }}.zip
-            PohonMC-Windows-MSVC-arm64-Portable-${{ env.VERSION }}.zip
-            PohonMC-Windows-MSVC-arm64-Setup-${{ env.VERSION }}.exe
-            PohonMC-Windows-MSVC-${{ env.VERSION }}.zip
-            PohonMC-Windows-MSVC-Portable-${{ env.VERSION }}.zip
-            PohonMC-Windows-MSVC-Setup-${{ env.VERSION }}.exe
-            PohonMC-macOS-${{ env.VERSION }}.zip
-            PohonMC-macOS-${{ env.VERSION }}.dmg
-            PohonMC-${{ env.VERSION }}.tar.gz
+          files: ${{ steps.checksums.outputs.files }}
+
+  # Attestations need a public repository on any current plan, or GitHub
+  # Enterprise Cloud for private/internal repositories.
+  attest_release:
+    name: Attest release assets
+    needs: create_release
+    runs-on: ubuntu-slim
+    permissions:
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download checksums
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-checksums
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-checksums: SHA256SUMS

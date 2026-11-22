@@ -52,7 +52,7 @@ runs:
             APPIMAGE_ARCH="aarch64"
             ;;
           *)
-            echo "# 🚨 The Debian architecture \"$deb_arch\" is not recognized!" >> "$GITHUB_STEP_SUMMARY"
+            echo "# 🚨 The Debian architecture \"$dpkg_arch\" is not recognized!" >> "$GITHUB_STEP_SUMMARY"
             exit 1
             ;;
         esac
@@ -66,18 +66,37 @@ runs:
       env:
         VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
         INSTALL_APPIMAGE_DIR: install-appdir
+        REF_TYPE: ${{ github.ref_type }}
+        UPDATE_OWNER: ${{ github.repository_owner }}
+        UPDATE_REPO: ${{ github.event.repository.name }}
 
         GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
+        GPG_PRIVATE_KEY_ID: ${{ inputs.gpg-private-key-id }}
       run: |
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }} --prefix ${{ env.INSTALL_APPIMAGE_DIR }}
+        cmake --install "$BUILD_DIR" --config "$BUILD_TYPE" --prefix "$INSTALL_APPIMAGE_DIR"
 
-        if [ '${{ inputs.gpg-private-key-id }}' != '' ]; then
-          echo "$GPG_PRIVATE_KEY" > privkey.asc
+        # mkappimage (go-appimage) has no signing flag. It signs the AppImage
+        # whenever privkey.asc and pubkey.asc are in the working directory,
+        # embeds pubkey.asc, and deletes privkey.asc once it has signed. The
+        # next step removes privkey.asc if anything fails before that.
+        if [ -n "$GPG_PRIVATE_KEY" ] && [ -n "$GPG_PRIVATE_KEY_ID" ]; then
+          (umask 077 && printf '%s\n' "$GPG_PRIVATE_KEY" > privkey.asc)
+          # Throwaway keyring, only used to export the matching public key
+          GNUPGHOME="$(mktemp -d "$RUNNER_TEMP/gnupg.XXXXXX")"
+          export GNUPGHOME
           gpg --import privkey.asc
-          gpg --export --armor ${{ inputs.gpg-private-key-id }} > pubkey.asc
+          gpg --export --armor "$GPG_PRIVATE_KEY_ID" > pubkey.asc
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
+          unset GNUPGHOME
+          if [ ! -s pubkey.asc ]; then
+            echo "::error::No public key exported for the configured AppImage signing key ID"
+            exit 1
+          fi
         else
-          echo ":warning: Skipped code signing for Linux AppImage, as gpg key was not present." >> $GITHUB_STEP_SUMMARY
+          echo ":warning: Skipped code signing for Linux AppImage, as gpg key was not present." >> "$GITHUB_STEP_SUMMARY"
         fi
 
         sharun lib4bin \
@@ -100,26 +119,33 @@ runs:
         mv "$INSTALL_APPIMAGE_DIR"/{sharun,AppRun}
         ls -la "$INSTALL_APPIMAGE_DIR"
 
-        if [[ "${{ github.ref_type }}" == "tag" ]]; then
+        if [[ "$REF_TYPE" == "tag" ]]; then
           APPIMAGE_DEST="PohonMC-Linux-$APPIMAGE_ARCH.AppImage"
         else
-          APPIMAGE_DEST="PohonMC-Linux-$VERSION-${{ inputs.build-type }}-$APPIMAGE_ARCH.AppImage"
+          APPIMAGE_DEST="PohonMC-Linux-$VERSION-$BUILD_TYPE-$APPIMAGE_ARCH.AppImage"
         fi
 
         mkappimage \
-          --updateinformation "gh-releases-zsync|${{ github.repository_owner }}|${{ github.event.repository.name }}|latest|PohonMC-Linux-$APPIMAGE_ARCH.AppImage.zsync" \
+          --updateinformation "gh-releases-zsync|$UPDATE_OWNER|$UPDATE_REPO|latest|PohonMC-Linux-$APPIMAGE_ARCH.AppImage.zsync" \
           "$INSTALL_APPIMAGE_DIR" \
           "$APPIMAGE_DEST"
+
+    - name: Remove AppImage signing key
+      if: ${{ always() }}
+      shell: bash
+      run: |
+        rm -f privkey.asc
 
     - name: Package portable tarball
       shell: bash
       env:
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
 
         INSTALL_PORTABLE_DIR: install-portable
       run: |
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }} --prefix ${{ env.INSTALL_PORTABLE_DIR }}
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }} --prefix ${{ env.INSTALL_PORTABLE_DIR }} --component portable
+        cmake --install "$BUILD_DIR" --config "$BUILD_TYPE" --prefix "$INSTALL_PORTABLE_DIR"
+        cmake --install "$BUILD_DIR" --config "$BUILD_TYPE" --prefix "$INSTALL_PORTABLE_DIR" --component portable
 
         sharun lib4bin \
           --with-hooks \
@@ -135,19 +161,19 @@ runs:
         tar -czf ../PohonMC-portable.tar.gz *
 
     - name: Upload binary tarball
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ inputs.artifact-name }}-Qt6-Portable-${{ inputs.version }}-${{ inputs.build-type }}
         path: PohonMC-portable.tar.gz
 
     - name: Upload AppImage
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ runner.os }}-${{ inputs.version }}-${{ inputs.build-type }}-${{ env.APPIMAGE_ARCH }}.AppImage
         path: PohonMC-${{ runner.os }}-*${{ env.APPIMAGE_ARCH }}.AppImage
 
     - name: Upload AppImage Zsync
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ runner.os }}-${{ inputs.version }}-${{ inputs.build-type }}-${{ env.APPIMAGE_ARCH }}.AppImage.zsync
         path: PohonMC-${{ runner.os }}-*${{ env.APPIMAGE_ARCH }}.AppImage.zsync
