@@ -19,6 +19,7 @@ class LoginWizardPage : public BaseWizardPage {
     void retranslate() override;
    private slots:
     void on_mojangButton_clicked();
+    void on_offlineButton_clicked();
 
    private:
     void useAccount(const MinecraftAccountPtr& account);

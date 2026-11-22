@@ -1,5 +1,6 @@
 #include "LoginWizardPage.h"
 #include "minecraft/auth/AccountList.h"
+#include "ui/dialogs/ChooseOfflineNameDialog.h"
 #include "ui/dialogs/MSALoginDialog.h"
 #include "ui_LoginWizardPage.h"
 
@@ -33,6 +34,22 @@ void LoginWizardPage::on_mojangButton_clicked()
     auto account = MSALoginDialog::newAccount(nullptr);
     wizard()->show();
     if (account) {
+        useAccount(account);
+    }
+}
+
+void LoginWizardPage::on_offlineButton_clicked()
+{
+    wizard()->hide();
+    ChooseOfflineNameDialog dialog(tr("Please enter your desired username to add your offline account."), nullptr);
+    const bool accepted = dialog.exec() == QDialog::Accepted;
+    wizard()->show();
+    if (!accepted) {
+        return;
+    }
+
+    if (const MinecraftAccountPtr account = MinecraftAccount::createOffline(dialog.getUsername())) {
+        account->login()->start();  // Offline accounts have no auth steps, so this completes immediately.
         useAccount(account);
     }
 }
