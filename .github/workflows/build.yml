@@ -189,9 +189,27 @@ jobs:
           restore-keys: |
             vcpkg-${{ matrix.artifact-name }}-
 
+      # The keys committed in CMakeLists.txt are upstream's. Repository secrets
+      # with these names replace them; an unset secret (including on pull
+      # requests from forks) leaves the CMake default in place.
       - name: Configure project
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MSA_CLIENT_ID: ${{ secrets.MSA_CLIENT_ID }}
+          IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
         run: |
-          cmake --preset "$CMAKE_PRESET"
+          key_args=()
+          if [ -n "$CURSEFORGE_API_KEY" ]; then
+            key_args+=("-DLauncher_CURSEFORGE_API_KEY=$CURSEFORGE_API_KEY")
+          fi
+          if [ -n "$MSA_CLIENT_ID" ]; then
+            key_args+=("-DLauncher_MSA_CLIENT_ID=$MSA_CLIENT_ID")
+          fi
+          if [ -n "$IMGUR_CLIENT_ID" ]; then
+            key_args+=("-DLauncher_IMGUR_CLIENT_ID=$IMGUR_CLIENT_ID")
+          fi
+          # the +-expansion keeps an empty array safe on bash 3.2 (macOS)
+          cmake --preset "$CMAKE_PRESET" ${key_args[@]+"${key_args[@]}"}
 
       - name: Run build
         run: |
