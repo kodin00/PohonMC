@@ -110,14 +110,24 @@ else
 RUN_BIN := $(OUT_DIR)/pohonmc
 endif
 
+# Package metadata for "deb", derived from existing project files.
+deb_ver = $(shell sed -n 's/^set.Launcher_VERSION_$(1) \([0-9]*\).*/\1/p' CMakeLists.txt)
+DEB_NAME    = $(shell sed -n 's/^set.Launcher_APP_BINARY_NAME "\([^"]*\)".*/\1/p' CMakeLists.txt)
+DEB_VERSION = $(call deb_ver,MAJOR).$(call deb_ver,MINOR).$(call deb_ver,PATCH)
+METAINFO    = program_info/io.github.kodin00.PohonMCLauncher.metainfo.xml.in
+DEB_MAINT   = $(shell sed -n '/<developer/,/<\/developer>/s:.*<name>\(.*\)</name>.*:\1:p' $(METAINFO))
+DEB_SUMMARY = $(shell sed -n 's:.*<summary>\(.*\)</summary>.*:\1:p' $(METAINFO))
+DEB_STAGE   = $(INSTALL_DIR)/deb-root
+
 # ----------------------------------------------------------------- targets --
 .DEFAULT_GOAL := help
-.PHONY: help configure build run test clean check-platform $(PLATFORM_WORDS)
+.PHONY: help configure build run test package clean check-platform \
+        package-macos package-linux package-windows package-deb $(PLATFORM_WORDS)
 
 help:
 	@echo "PohonMC Launcher - CMake wrapper"
 	@echo
-	@echo "Usage: make <target> [platform]   e.g. make build macos, make run linux"
+	@echo "Usage: make <target> [platform]   e.g. make build macos, make package deb"
 	@echo
 	@echo "Targets:"
 	@echo "  help       Show this help (default)"
@@ -125,7 +135,8 @@ help:
 	@echo "  build      Configure if needed, then build"
 	@echo "  run        Build, then launch the launcher (RUN_ARGS=... to pass args)"
 	@echo "  test       Build, then run ctest"
-	@echo "  clean      Remove BUILD_DIR"
+	@echo "  package    Build, then package for the platform (see below)"
+	@echo "  clean      Remove BUILD_DIR and INSTALL_DIR/deb-root"
 	@echo
 	@echo "Platforms (positional word or PLATFORM=...): macos linux windows deb"
 	@echo "  Auto-detected from uname -s. Cross-compiling is not supported: a"
@@ -135,6 +146,7 @@ help:
 	@echo "  PLATFORM    Override platform (default: host, now: $(HOST_PLATFORM))"
 	@echo "  CONFIG      Debug|Release (default: Debug)"
 	@echo "  BUILD_DIR   Build directory (default: build)"
+	@echo "  INSTALL_DIR Package output directory (default: install)"
 	@echo "  JOBS        Parallel jobs (default: cmake's choice)"
 	@echo "  CMAKE_ARGS  Extra arguments for the configure step"
 	@echo "  ENABLE_LTO  ON|OFF (default: ON for Release, OFF for Debug)"
@@ -147,6 +159,15 @@ help:
 	@echo "CMAKE_ARGS, ENABLE_LTO or the dependency setup. Java must be JDK 7-19"
 	@echo "(javac -source 7); on macOS Homebrew's openjdk@17 is used if present."
 	@echo
+	@echo "Packages:"
+	@echo "  macos    cmake --install -> $(INSTALL_DIR)/macos/PohonMC.app"
+	@echo "  linux    cmake --install -> $(INSTALL_DIR)/linux (prefix tree)"
+	@echo "  windows  cmake --install -> $(INSTALL_DIR)/windows (install tree)"
+	@echo "  deb      Stage with prefix /usr, then dpkg-deb. The project has no CPack"
+	@echo "           rules, so only Package/Version/Architecture/Maintainer/"
+	@echo "           Description are generated (from project files). There is no"
+	@echo "           Depends: line - runtime Qt libraries are not declared."
+	@echo "           Needs dpkg-deb (Debian/Ubuntu)."
 
 # Positional platform words are no-ops; they are read from MAKECMDGOALS above.
 $(PLATFORM_WORDS):
@@ -181,5 +202,30 @@ run: build
 test: build
 	ctest --test-dir $(BUILD_DIR) -C $(CONFIG) --output-on-failure -E '^example64|example$$' $(JOBS_FLAG)
 
+package: package-$(TARGET_PLATFORM)
+
+package-macos: build
+	cmake --install $(BUILD_DIR) --config $(CONFIG) --prefix $(INSTALL_DIR)/macos
+	@echo "Package: $(INSTALL_DIR)/macos/PohonMC.app"
+
+package-linux: build
+	cmake --install $(BUILD_DIR) --config $(CONFIG) --prefix $(INSTALL_DIR)/linux
+	@echo "Package: $(INSTALL_DIR)/linux"
+
+package-windows: build
+	cmake --install $(BUILD_DIR) --config $(CONFIG) --prefix $(INSTALL_DIR)/windows
+	@echo "Package: $(INSTALL_DIR)/windows"
+
+package-deb: build
+	@command -v dpkg-deb >/dev/null || { echo "error: dpkg-deb not found (apt install dpkg)" >&2; exit 1; }
+	rm -rf $(DEB_STAGE)
+	cmake --install $(BUILD_DIR) --config $(CONFIG) --prefix $(DEB_STAGE)/usr
+	mkdir -p $(DEB_STAGE)/DEBIAN
+	printf 'Package: %s\nVersion: %s\nArchitecture: %s\nMaintainer: %s\nDescription: %s\n' \
+	  "$(DEB_NAME)" "$(DEB_VERSION)" "$$(dpkg --print-architecture)" "$(DEB_MAINT)" "$(DEB_SUMMARY)" \
+	  > $(DEB_STAGE)/DEBIAN/control
+	dpkg-deb --root-owner-group --build $(DEB_STAGE) $(INSTALL_DIR)/$(DEB_NAME)_$(DEB_VERSION)_$$(dpkg --print-architecture).deb
+	@echo "Package: $(INSTALL_DIR)/$(DEB_NAME)_$(DEB_VERSION)_*.deb"
+
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(DEB_STAGE)
