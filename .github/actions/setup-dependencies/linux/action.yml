@@ -30,7 +30,7 @@ runs:
             APPIMAGE_ARCH="aarch64"
             ;;
           *)
-            echo "# 🚨 The Debian architecture \"$deb_arch\" is not recognized!" >> "$GITHUB_STEP_SUMMARY"
+            echo "# 🚨 The Debian architecture \"$dpkg_arch\" is not recognized!" >> "$GITHUB_STEP_SUMMARY"
             exit 1
             ;;
         esac

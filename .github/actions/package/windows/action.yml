@@ -40,9 +40,10 @@ runs:
       shell: msys2 {0}
       env:
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
         INSTALL_DIR: install
       run: |
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }}
+        cmake --install ${{ env.BUILD_DIR }} --config "$BUILD_TYPE"
         touch ${{ env.INSTALL_DIR }}/manifest.txt
         for l in $(find ${{ env.INSTALL_DIR }} -type f); do l=$(cygpath -u $l); l=${l#$(pwd)/}; l=${l#${{ env.INSTALL_DIR }}/}; l=${l#./}; echo $l; done >> ${{ env.INSTALL_DIR }}/manifest.txt
 
@@ -51,9 +52,10 @@ runs:
       shell: pwsh
       env:
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
         INSTALL_DIR: install
       run: |
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }}
+        cmake --install ${{ env.BUILD_DIR }} --config $env:BUILD_TYPE
 
         cd ${{ github.workspace }}
 
@@ -105,11 +107,12 @@ runs:
       shell: msys2 {0}
       env:
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
         INSTALL_DIR: install
         INSTALL_PORTABLE_DIR: install-portable
       run: |
         cp -r ${{ env.INSTALL_DIR }} ${{ env.INSTALL_PORTABLE_DIR }}  # cmake install on Windows is slow, let's just copy instead
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }} --prefix ${{ env.INSTALL_PORTABLE_DIR }} --component portable
+        cmake --install ${{ env.BUILD_DIR }} --config "$BUILD_TYPE" --prefix ${{ env.INSTALL_PORTABLE_DIR }} --component portable
         for l in $(find ${{ env.INSTALL_PORTABLE_DIR }} -type f); do l=$(cygpath -u $l); l=${l#$(pwd)/}; l=${l#${{ env.INSTALL_PORTABLE_DIR }}/}; l=${l#./}; echo $l; done >> ${{ env.INSTALL_PORTABLE_DIR }}/manifest.txt
 
     - name: Package (MSVC, portable)
@@ -117,11 +120,12 @@ runs:
       shell: pwsh
       env:
         BUILD_DIR: build
+        BUILD_TYPE: ${{ inputs.build-type }}
         INSTALL_DIR: install
         INSTALL_PORTABLE_DIR: install-portable
       run: |
         cp -r ${{ env.INSTALL_DIR }} ${{ env.INSTALL_PORTABLE_DIR }}  # cmake install on Windows is slow, let's just copy instead
-        cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }} --prefix ${{ env.INSTALL_PORTABLE_DIR }} --component portable
+        cmake --install ${{ env.BUILD_DIR }} --config $env:BUILD_TYPE --prefix ${{ env.INSTALL_PORTABLE_DIR }} --component portable
 
         Get-ChildItem ${{ env.INSTALL_PORTABLE_DIR }} -Recurse | ForEach FullName | Resolve-Path -Relative | %{ $_.TrimStart('.\') } | %{ $_.TrimStart('${{ env.INSTALL_PORTABLE_DIR }}') } | %{ $_.TrimStart('\') } | Out-File -FilePath ${{ env.INSTALL_DIR }}/manifest.txt
 
