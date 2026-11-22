@@ -150,7 +150,8 @@ jobs:
         if: ${{ env.DEBUG == 'false' }}
         run: |
           nix build --no-link --print-build-logs --print-out-paths .#prismlauncher \
-            | tee "$RUNNER_TEMP/nix-release-paths" >> "$GITHUB_STEP_SUMMARY"
+            > "$RUNNER_TEMP/nix-release-paths"
+          cat "$RUNNER_TEMP/nix-release-paths" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Pin release package in Cachix
         if: ${{ github.ref_type == 'tag' && steps.cachix.outputs.can_pin == 'true' }}
