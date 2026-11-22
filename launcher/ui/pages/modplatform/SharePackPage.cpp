@@ -99,20 +99,27 @@ void SharePackPage::preview()
         if (dependencies.contains(id))
             versions.append(tr("%1 %2").arg(name, dependencies.value(id).toString()));
     }
-    m_summary->setText(versions.join(" · "));
 
     m_mods->clear();
     bool hasRequired = false;
+    bool hasManualDownloads = false;
     const auto files = m_manifest.value("files").toArray();
     for (const auto& value : files) {
         const auto file = value.toObject();
         const auto path = file.value("path").toString();
-        auto label = file.value("name").toString(QFileInfo(path).fileName());
-        const auto version = file.value("version").toString();
-        if (!version.isEmpty())
-            label = tr("%1 (%2)").arg(label, version);
-        if (path.endsWith(".disabled"))
-            label = tr("%1 [disabled]").arg(label);
+        const auto fileName = QFileInfo(path).fileName();
+        const bool manualDownload = SharePack::requiresManualDownload(file);
+        auto label = file.value("name").toString(fileName);
+        if (manualDownload) {
+            label = tr("%1 [missing]").arg(fileName);
+            hasManualDownloads = true;
+        } else {
+            const auto version = file.value("version").toString();
+            if (!version.isEmpty())
+                label = tr("%1 (%2)").arg(label, version);
+            if (path.endsWith(".disabled"))
+                label = tr("%1 [disabled]").arg(label);
+        }
 
         const auto requirement = file.value("pohonServerRequirement").toString();
         const bool required = requirement == "required";
@@ -122,10 +129,14 @@ void SharePackPage::preview()
                                                      : requirement == "optional" ? tr("Optional")
                                                                                  : tr("Unspecified"),
                                                  });
-        item->setToolTip(0, path);
+        item->setToolTip(0, manualDownload ? tr("%1 is missing. Ask your friend to share the file manually.").arg(fileName) : path);
         item->setData(0, Qt::UserRole, required);
         hasRequired |= required;
     }
+    auto summary = versions.join(" · ");
+    if (hasManualDownloads)
+        summary += "\n" + tr("Ask your friend to share the files marked Missing, then add them to this instance’s Mods folder.");
+    m_summary->setText(summary);
     m_onlyRequired->setEnabled(!files.isEmpty());
     m_installRequired->setEnabled(hasRequired);
     updateFilter();

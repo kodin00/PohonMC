@@ -99,6 +99,13 @@ void ModrinthPackExportTask::collectFiles()
         collectHashes();
 }
 
+bool ModrinthPackExportTask::isSupportedArchive(const QString& fileName, Qt::CaseSensitivity sensitivity)
+{
+    return std::any_of(FILE_EXTENSIONS.begin(), FILE_EXTENSIONS.end(), [&fileName, sensitivity](const QString& extension) {
+        return fileName.endsWith('.' + extension, sensitivity) || fileName.endsWith('.' + extension + ".disabled", sensitivity);
+    });
+}
+
 void ModrinthPackExportTask::collectHashes()
 {
     setStatus(tr("Finding file hashes..."));
@@ -109,10 +116,7 @@ void ModrinthPackExportTask::collectHashes()
         // require sensible file types
         if (!std::any_of(PREFIXES.begin(), PREFIXES.end(), [&relative](const QString& prefix) { return relative.startsWith(prefix); }))
             continue;
-        if (!std::any_of(FILE_EXTENSIONS.begin(), FILE_EXTENSIONS.end(), [this, &relative](const QString& extension) {
-                const auto sensitivity = manifestFiles ? Qt::CaseInsensitive : Qt::CaseSensitive;
-                return relative.endsWith('.' + extension, sensitivity) || relative.endsWith('.' + extension + ".disabled", sensitivity);
-            }))
+        if (!isSupportedArchive(relative, manifestFiles ? Qt::CaseInsensitive : Qt::CaseSensitive))
             continue;
 
         QFile openFile(file.absoluteFilePath());
@@ -174,7 +178,12 @@ void ModrinthPackExportTask::makeApiRequest()
         auto [versionsTask, response] = api.currentVersions(pendingHashes.values(), "sha512");
         task = versionsTask;
         connect(task.get(), &Task::succeeded, [this, response]() { parseApiResponse(response); });
-        connect(task.get(), &Task::failed, this, &ModrinthPackExportTask::emitFailed);
+        connect(task.get(), &Task::failed, this, [this](const QString& reason) {
+            if (manifestFiles)
+                buildZip();
+            else
+                emitFailed(reason);
+        });
         connect(task.get(), &Task::aborted, this, &ModrinthPackExportTask::emitAborted);
         task->start();
     }
@@ -216,16 +225,6 @@ void ModrinthPackExportTask::parseApiResponse(QByteArray* response)
 void ModrinthPackExportTask::buildZip()
 {
     if (manifestFiles) {
-        QStringList unresolved;
-        for (const auto& file : files) {
-            const auto path = gameRoot.relativeFilePath(file.absoluteFilePath());
-            if (!resolvedFiles.contains(path))
-                unresolved << path;
-        }
-        if (!unresolved.isEmpty()) {
-            emitFailed(tr("These mods have no downloadable provider reference: %1").arg(unresolved.join(", ")));
-            return;
-        }
         m_manifestIndex = generateIndex();
         emitSucceeded();
         return;

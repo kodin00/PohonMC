@@ -42,6 +42,8 @@ class ModrinthPackExportTask : public Task {
                            const QMap<QString, QPair<QString, QString>>& pinnedDownloads = {},
                            std::optional<QFileInfoList> manifestFiles = std::nullopt);
 
+    static bool isSupportedArchive(const QString& fileName, Qt::CaseSensitivity sensitivity);
+
     QByteArray manifestIndex() const { return m_manifestIndex; }
 
    protected:

@@ -31,7 +31,24 @@ bool safeText(const QJsonValue& v, int max = 256)
     return v.isString() && !v.toString().trimmed().isEmpty() && v.toString().size() <= max &&
            !v.toString().contains(QRegularExpression(QStringLiteral("[\\x00-\\x1f\\x7f]")));
 }
+
+bool hasSupportedDownloadUrl(const QJsonObject& file)
+{
+    static const QSet<QString> hosts{ "cdn.modrinth.com", "edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net" };
+    const auto downloads = file.value("downloads").toArray();
+    if (downloads.size() != 1 || !downloads.first().isString())
+        return false;
+
+    const QUrl url(downloads.first().toString(), QUrl::StrictMode);
+    return url.isValid() && url.scheme() == "https" && hosts.contains(url.host().toLower()) && url.userInfo().isEmpty() &&
+           url.port() == -1 && !url.hasFragment() && !url.path().isEmpty();
+}
 }  // namespace
+
+bool SharePack::requiresManualDownload(const QJsonObject& file)
+{
+    return file.value("pohonManualDownload") == true;
+}
 
 bool SharePack::validate(const QJsonObject& obj, QString* error)
 {
@@ -55,31 +72,36 @@ bool SharePack::validate(const QJsonObject& obj, QString* error)
         return fail(error, QObject::tr("Too many mods in share code."));
     QSet<QString> paths;
     const QRegularExpression sha512(QStringLiteral("^[a-fA-F0-9]{128}$"));
-    const QRegularExpression filenamePattern(QStringLiteral("^[^<>:\"/\\\\|?*\\x00-\\x1f]+\\.(jar|zip|litemod)(\\.disabled)?$"),
+    const QRegularExpression filenamePattern(QStringLiteral("^[^<>:\"/\\\\|?*\\x00-\\x1f]+\\.(jar|zip|litemod|nilmod)(\\.disabled)?$"),
                                              QRegularExpression::CaseInsensitiveOption);
     const QRegularExpression reserved(QStringLiteral("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\.|$)"),
                                       QRegularExpression::CaseInsensitiveOption);
-    const QSet<QString> hosts{ "cdn.modrinth.com", "edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net" };
     for (const auto& v : files) {
         if (!v.isObject())
             return fail(error, QObject::tr("Invalid mod entry."));
         const auto f = v.toObject();
-        QString path = f.value("path").toString();
+        const auto path = f.value("path").toString();
         const auto filename = path.mid(5);
+        const bool manual = requiresManualDownload(f);
+        if (f.contains("pohonManualDownload") && !manual)
+            return fail(error, QObject::tr("Invalid manual download marker for %1.").arg(path));
         if (!safeText(f.value("path"), 255) || !path.startsWith("mods/") || !filenamePattern.match(filename).hasMatch() ||
             filename.startsWith('.') || filename.contains("..") || reserved.match(filename).hasMatch() ||
             FS::RemoveInvalidPathChars(path) != path || paths.contains(path.toCaseFolded()))
             return fail(error, QObject::tr("Invalid or duplicate mod path: %1").arg(path));
         paths.insert(path.toCaseFolded());
-        if (!sha512.match(f.value("hashes").toObject().value("sha512").toString()).hasMatch())
-            return fail(error, QObject::tr("Missing or invalid SHA-512 for %1.").arg(path));
-        auto downloads = f.value("downloads").toArray();
-        if (downloads.size() != 1 || !downloads.first().isString())
-            return fail(error, QObject::tr("Invalid download for %1.").arg(path));
-        QUrl url(downloads.first().toString(), QUrl::StrictMode);
-        if (!url.isValid() || url.scheme() != "https" || !hosts.contains(url.host().toLower()) || !url.userInfo().isEmpty() ||
-            url.port() != -1 || url.hasFragment() || url.path().isEmpty())
-            return fail(error, QObject::tr("Untrusted download URL for %1.").arg(path));
+
+        if (manual) {
+            if (f.contains("downloads") || f.contains("hashes"))
+                return fail(error, QObject::tr("Unexpected download information for manual mod %1.").arg(path));
+        } else {
+            if (!ModrinthPackExportTask::isSupportedArchive(filename, Qt::CaseInsensitive))
+                return fail(error, QObject::tr("Unsupported mod archive for automatic download: %1").arg(path));
+            if (!sha512.match(f.value("hashes").toObject().value("sha512").toString()).hasMatch())
+                return fail(error, QObject::tr("Missing or invalid SHA-512 for %1.").arg(path));
+            if (!hasSupportedDownloadUrl(f))
+                return fail(error, QObject::tr("Untrusted download URL for %1.").arg(path));
+        }
         auto env = f.value("env").toObject();
         if (!env.isEmpty() &&
             (env.value("client") != "required" || (env.value("server") != "required" && env.value("server") != "unsupported")))
@@ -154,20 +176,16 @@ void SharePackExportTask::executeTask()
         return;
     }
     const QDir mods(m_instance->modsRoot());
-    QStringList unsupported;
+    QStringList paths;
     QFileInfoList candidates;
-    for (const auto& info : mods.entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot)) {
-        const auto relative = info.fileName();
-        if (relative == ".index" || relative == ".pohon-server-requirements.json")
+    for (const auto& info : mods.entryInfoList(QDir::Files | QDir::System)) {
+        const auto name = info.fileName();
+        const bool nilMod = name.endsWith(".nilmod", Qt::CaseInsensitive) || name.endsWith(".nilmod.disabled", Qt::CaseInsensitive);
+        if (!nilMod && !ModrinthPackExportTask::isSupportedArchive(name, Qt::CaseInsensitive))
             continue;
-        if (info.isSymLink() || !info.isFile() || relative.startsWith('.'))
-            unsupported << relative;
-        else
+        paths << ("mods/" + name);
+        if (!nilMod && info.isFile() && !info.isSymLink())
             candidates << info;
-    }
-    if (!unsupported.isEmpty()) {
-        emitFailed(tr("Cannot share these files in the mods folder: %1").arg(unsupported.join(", ")));
-        return;
     }
     QMap<QString, QPair<QString, QString>> pinnedDownloads;
     QFile previous(QDir(m_instance->instanceRoot()).filePath("mrpack/modrinth.index.json"));
@@ -176,6 +194,8 @@ void SharePackExportTask::executeTask()
         if (SharePack::validate(manifest)) {
             for (const auto& value : manifest.value("files").toArray()) {
                 const auto file = value.toObject();
+                if (SharePack::requiresManualDownload(file))
+                    continue;
                 pinnedDownloads.insert(file.value("path").toString(), { file.value("hashes").toObject().value("sha512").toString(),
                                                                         file.value("downloads").toArray().first().toString() });
             }
@@ -196,10 +216,22 @@ void SharePackExportTask::executeTask()
     connect(task.get(), &Task::abortStatusChanged, this, &Task::setAbortable);
     connect(task.get(), &Task::failed, this, &SharePackExportTask::emitFailed);
     connect(task.get(), &Task::aborted, this, &SharePackExportTask::emitAborted);
-    connect(task.get(), &Task::succeeded, this, [this, exporter = task.get()] {
-        auto doc = QJsonDocument::fromJson(exporter->manifestIndex());
-        m_manifest = doc.object();
-        auto files = m_manifest.value("files").toArray();
+    connect(task.get(), &Task::succeeded, this, [this, exporter = task.get(), paths = std::move(paths)] {
+        m_manifest = QJsonDocument::fromJson(exporter->manifestIndex()).object();
+        QJsonArray files;
+        QSet<QString> downloadablePaths;
+        const auto resolvedFiles = m_manifest.value("files").toArray();
+        for (const auto& value : resolvedFiles) {
+            const auto file = value.toObject();
+            if (hasSupportedDownloadUrl(file)) {
+                files.append(file);
+                downloadablePaths.insert(file.value("path").toString());
+            }
+        }
+        for (const auto& path : paths) {
+            if (!downloadablePaths.contains(path))
+                files.append(QJsonObject{ { "path", path }, { "pohonManualDownload", true } });
+        }
         const QDir mods(m_instance->modsRoot());
         const auto allMods = m_instance->loaderModList()->allMods();
         for (int i = 0; i < files.size(); ++i) {
@@ -241,26 +273,38 @@ void SharePackImportTask::executeTask()
         emitFailed(error);
         return;
     }
+    QJsonArray downloads;
+    QMap<QString, QString> requirements;
+    for (const auto& value : m_manifest.value("files").toArray()) {
+        const auto file = value.toObject();
+        const auto fileName = QFileInfo(file.value("path").toString()).fileName();
+        const auto requirement = file.value("pohonServerRequirement").toString("unknown");
+        if (requirement != "unknown")
+            requirements.insert(fileName, requirement);
+        if (SharePack::requiresManualDownload(file)) {
+            logWarning(
+                tr("%1 is missing. Ask your friend to share the file manually, then add it to this instance’s Mods folder.").arg(fileName));
+        } else {
+            downloads.append(file);
+        }
+    }
+    auto downloadManifest = m_manifest;
+    downloadManifest.insert("files", downloads);
     QFile index(QDir(m_stagingPath).filePath("modrinth.index.json"));
-    const auto indexData = QJsonDocument(m_manifest).toJson(QJsonDocument::Compact);
+    const auto indexData = QJsonDocument(downloadManifest).toJson(QJsonDocument::Compact);
     if (!index.open(QIODevice::WriteOnly | QIODevice::Truncate) || index.write(indexData) != indexData.size()) {
         emitFailed(tr("Could not write share pack index."));
         return;
     }
     index.close();
+
     const QDir mods(QDir(m_stagingPath).filePath("minecraft/mods"));
-    QMap<QString, QString> requirements;
-    for (const auto& value : m_manifest.value("files").toArray()) {
-        const auto file = value.toObject();
-        const auto requirement = file.value("pohonServerRequirement").toString("unknown");
-        if (requirement != "unknown")
-            requirements.insert(QFileInfo(file.value("path").toString()).fileName(), requirement);
-    }
     if (!requirements.isEmpty() && !ModFolderModel::setServerRequirements(mods, requirements)) {
         emitFailed(tr("Could not save server requirements."));
         return;
     }
     auto task = makeShared<ModrinthCreationTask>(m_stagingPath, m_globalSettings, m_parent, QString());
+    task->setCreateOnly();
     task->setName(*this);
     task->setIcon(m_instIcon);
     task->setGroup(m_instGroup);

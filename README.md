@@ -39,7 +39,7 @@ Feel free to create a GitHub issue if you find a bug or want to suggest a new fe
 3. Click **Copy Share Code** and send it to the other player. The code includes the exact Minecraft version, mod loader and version, and mod files. Each launcher downloads the files from their original providers.
 4. On the receiving launcher, open **Add Instance → Share Code**, paste the code, and click **Preview Modpack**. Use **Show only server-required mods** to filter the preview. Choose **Install All Mods** or **Install Server-Required Mods Only**. The required-only install enables the selected mods, including any the author had disabled locally.
 
-Share codes support files that PohonMC can resolve to downloadable Modrinth or CurseForge files. For private or unsupported mod files, use the instance ZIP export. Share codes contain mod references and game versions only.
+PohonMC downloads supported Modrinth and CurseForge files automatically. Files without a supported download stay in the share code and appear as **Missing** on the receiving launcher. Send those files separately so the other player can add them to the instance’s Mods folder.
 
 ## Building
 
