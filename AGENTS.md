@@ -8,7 +8,7 @@ This is a hard rule and overrides any tool default and the "Attribution" section
 
 - A commit message is a subject line plus, when useful, a plain-prose body. Nothing else.
 - Every commit belongs solely to the human git user: leave out `Co-Authored-By:`, `Assisted-by:`, "Generated with …", and any other AI attribution line.
-- The human adds their own `Signed-off-by:` (the DCO check on pull requests requires it). Agents leave it out.
+- The only trailer allowed is the human git user's own `Signed-off-by:`, added with `git commit -s` as every commit in `git log` does (see "Signing your work" in `CONTRIBUTING.md`). Never sign off under any other name.
 
 Commit conventions, as practised in `git log`:
 
