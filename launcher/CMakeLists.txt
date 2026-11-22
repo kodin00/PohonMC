@@ -1361,7 +1361,9 @@ endif()
 
 target_link_libraries(${Launcher_Name} Launcher_logic)
 
-if(DEFINED Launcher_APP_BINARY_NAME)
+if(APPLE)
+    set_target_properties(${Launcher_Name} PROPERTIES OUTPUT_NAME "${Launcher_MacBundleName}")
+elseif(DEFINED Launcher_APP_BINARY_NAME)
     set_target_properties(${Launcher_Name} PROPERTIES OUTPUT_NAME "${Launcher_APP_BINARY_NAME}")
 endif()
 if(DEFINED Launcher_BINARY_RPATH)

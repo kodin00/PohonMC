@@ -65,11 +65,16 @@ on:
       # Workflows
       - ".github/workflows/nix.yml"
   workflow_dispatch:
+    inputs:
+      release-build:
+        description: Build release packages without pushing a release tag
+        type: boolean
+        default: false
 
 permissions: {}
 
 env:
-  DEBUG: ${{ github.ref_type != 'tag' }}
+  DEBUG: ${{ github.ref_type != 'tag' && !inputs.release-build }}
 
 jobs:
   build:
@@ -108,12 +113,26 @@ jobs:
           diagnostic-endpoint: ""
           use-flakehub: false
 
-        # For in-tree builds
-      - name: Setup Cachix
+      - name: Check Cachix configuration
+        id: cachix
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        env:
+          CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+          AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+        run: |
+          if [ -n "$CACHE_NAME" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            if [ -n "$AUTH_TOKEN" ]; then
+              echo "can_pin=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+        # Optional cache for in-tree builds
+      - name: Setup Cachix
+        if: ${{ steps.cachix.outputs.configured == 'true' }}
         uses: cachix/cachix-action@v17
         with:
-          name: prismlauncher
+          name: ${{ vars.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Run Flake checks
@@ -129,10 +148,17 @@ jobs:
 
       - name: Build release package
         if: ${{ env.DEBUG == 'false' }}
+        run: |
+          nix build --no-link --print-build-logs --print-out-paths .#prismlauncher \
+            > "$RUNNER_TEMP/nix-release-paths"
+          cat "$RUNNER_TEMP/nix-release-paths" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pin release package in Cachix
+        if: ${{ github.ref_type == 'tag' && steps.cachix.outputs.can_pin == 'true' }}
         env:
           TAG: ${{ github.ref_name }}
           SYSTEM: ${{ matrix.system }}
+          CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
-          nix build --no-link --print-out-paths .#prismlauncher \
-            | tee -a "$GITHUB_STEP_SUMMARY" \
-            | xargs cachix pin prismlauncher "$TAG"-"$SYSTEM"
+          xargs cachix pin "$CACHE_NAME" "$TAG"-"$SYSTEM" < "$RUNNER_TEMP/nix-release-paths"
