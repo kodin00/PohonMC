@@ -67,7 +67,7 @@ runs:
 
     - name: Login to Azure
       if: ${{ env.CI_HAS_ACCESS_TO_AZURE != '' && inputs.azure-client-id != '' && inputs.azure-signing-account != '' && inputs.azure-certificate-profile != '' }}
-      uses: azure/login@v3
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
       with:
         client-id: ${{ inputs.azure-client-id }}
         tenant-id: ${{ inputs.azure-tenant-id }}
@@ -75,7 +75,7 @@ runs:
 
     - name: Sign executables
       if: ${{ env.CI_HAS_ACCESS_TO_AZURE != '' && inputs.azure-client-id != '' && inputs.azure-signing-account != '' && inputs.azure-certificate-profile != '' }}
-      uses: azure/artifact-signing-action@v2
+      uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: ${{ inputs.azure-signing-account }}
@@ -148,7 +148,7 @@ runs:
 
     - name: Sign installer
       if: ${{ env.CI_HAS_ACCESS_TO_AZURE != '' && inputs.azure-client-id != '' && inputs.azure-signing-account != '' && inputs.azure-certificate-profile != '' }}
-      uses: azure/artifact-signing-action@v2
+      uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: ${{ inputs.azure-signing-account }}
@@ -174,19 +174,19 @@ runs:
         exclude-interactive-browser-credential: true
 
     - name: Upload binary zip
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ inputs.artifact-name }}-${{ inputs.version }}-${{ inputs.build-type }}
         path: install/**
 
     - name: Upload portable zip
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ inputs.artifact-name }}-Portable-${{ inputs.version }}-${{ inputs.build-type }}
         path: install-portable/**
 
     - name: Upload installer
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: PohonMC-${{ inputs.artifact-name }}-Setup-${{ inputs.version }}-${{ inputs.build-type }}
         path: PohonMC-Setup.exe
