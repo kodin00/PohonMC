@@ -3,11 +3,11 @@
 ## Restrictions on Generative AI Usage (AI Policy)
 
 > [!NOTE]
-> The following is adapted from [matplotlib's contributing guide](https://matplotlib.org/devdocs/devel/contribute.html#generative-ai) and the [Linux Kernel policy guide](https://www.kernel.org/doc./html/next/process/coding-assistants.html)
+> The following is adapted from [matplotlib's contributing guide](https://matplotlib.org/devdocs/devel/contribute.html#generative-ai) and the [Linux Kernel policy guide](https://www.kernel.org/doc/html/next/process/coding-assistants.html)
 
 We expect authentic engagement in our community.
 
-- Do not post output from Large Language Models or similar generative AI as comments on GitHub or our discord server, as such comments tend to be formulaic and low-quality content.
+- Do not post output from Large Language Models or similar generative AI as comments on GitHub, as such comments tend to be formulaic and low-quality content.
 - If you use generative AI tools as an aid in developing code or documentation changes, ensure that you fully understand the proposed changes and can explain why they are the correct approach.
 
 Make sure you have added value based on your personal competency to your contributions.
