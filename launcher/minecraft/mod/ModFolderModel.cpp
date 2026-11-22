@@ -156,7 +156,7 @@ ModFolderModel::ModFolderModel(const QDir& dir, BaseInstance* instance, bool isI
                                             tr("Requires"), tr("Required By"), tr("File Name"), tr("Server Requirement") });
     m_columnSortKeys = { SortType::Enabled,     SortType::Name,     SortType::Name,       SortType::Version,  SortType::Date,
                          SortType::Provider,    SortType::Size,     SortType::Side,       SortType::Loaders,  SortType::McVersions,
-                         SortType::ReleaseType, SortType::Requires, SortType::RequiredBy, SortType::Filename, SortType::Name };
+                         SortType::ReleaseType, SortType::Requires, SortType::RequiredBy, SortType::Filename, SortType::ServerRequirement };
     m_columnResizeModes = { QHeaderView::Interactive, QHeaderView::Interactive, QHeaderView::Stretch,     QHeaderView::Interactive,
                             QHeaderView::Interactive, QHeaderView::Interactive, QHeaderView::Interactive, QHeaderView::Interactive,
                             QHeaderView::Interactive, QHeaderView::Interactive, QHeaderView::Interactive, QHeaderView::Interactive,

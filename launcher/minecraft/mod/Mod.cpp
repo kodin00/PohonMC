@@ -148,6 +148,21 @@ int Mod::compare(const Resource& other, SortType type) const
                 return -1;
             break;
         }
+        case SortType::ServerRequirement: {
+            // Ascending order lists Required first, then Optional, then unclassified mods.
+            auto rank = [](const QString& requirement) {
+                if (requirement == "required")
+                    return 0;
+                if (requirement == "optional")
+                    return 1;
+                return 2;
+            };
+            const auto thisRank = rank(serverRequirement());
+            const auto otherRank = rank(cast_other->serverRequirement());
+            if (thisRank != otherRank)
+                return thisRank < otherRank ? -1 : 1;
+            break;
+        }
     }
     return 0;
 }
