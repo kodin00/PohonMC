@@ -17,7 +17,6 @@ on:
       - "**.h"
       - "**.java"
       - "**.ui"
-      - "**.md"
 
       # Build files
       - "**.nix"
@@ -34,6 +33,7 @@ on:
 
       # Files
       - "CMakeLists.txt"
+      - "COPYING.md"
 
       # Workflows
       - ".github/workflows/nix.yml"
@@ -44,7 +44,6 @@ on:
       - "**.h"
       - "**.java"
       - "**.ui"
-      - "**.md"
 
       # Build files
       - "**.nix"
@@ -61,6 +60,7 @@ on:
 
       # Files
       - "CMakeLists.txt"
+      - "COPYING.md"
 
       # Workflows
       - ".github/workflows/nix.yml"

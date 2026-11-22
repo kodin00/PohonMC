@@ -8,6 +8,9 @@ on:
   merge_group:
     types: [checks_requested]
   pull_request:
+    paths:
+      - "Containerfile"
+      - ".github/workflows/container.yml"
   workflow_dispatch:
 
 permissions: {}
