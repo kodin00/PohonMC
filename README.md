@@ -35,7 +35,7 @@ Feel free to create a GitHub issue if you find a bug or want to suggest a new fe
 ## Share a Modpack
 
 1. Create a Minecraft instance and add the mods you want.
-2. Select the instance and open **Export → Share Modpack**. Mark the mods that players need to join your server as **Required**, including their required dependencies. You can also classify selected mods from **Edit → Mods → Server Mods**.
+2. Select the instance and open **Export → Share Modpack**. Mark the mods that players need to join your server as **Required**, including their required dependencies. You can also classify selected mods from **Edit → Mods → Server Mods**. The mod list's **Server Requirement** column shows which mods are marked Required or Optional; sort by it to see the server-required mods first.
 3. Click **Copy Share Code** and send it to the other player. The code includes the exact Minecraft version, mod loader and version, and mod files. Each launcher downloads the files from their original providers.
 4. On the receiving launcher, open **Add Instance → Share Code**, paste the code, and click **Preview Modpack**. Use **Show only server-required mods** to filter the preview. Choose **Install All Mods** or **Install Server-Required Mods Only**. The required-only install enables the selected mods, including any the author had disabled locally.
 
