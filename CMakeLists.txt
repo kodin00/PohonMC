@@ -368,7 +368,8 @@ if(NOT (UNIX AND APPLE))
 endif()
 
 if(UNIX AND APPLE)
-    set(Launcher_BundleContents "${Launcher_APP_BINARY_NAME}.app/Contents")
+    set(Launcher_MacBundleName "PohonMC")
+    set(Launcher_BundleContents "${Launcher_MacBundleName}.app/Contents")
     set(BINARY_DEST_DIR "${Launcher_BundleContents}/MacOS")
     set(LIBRARY_DEST_DIR "${Launcher_BundleContents}/MacOS")
     set(PLUGIN_DEST_DIR "${Launcher_BundleContents}/MacOS")
@@ -377,7 +378,7 @@ if(UNIX AND APPLE)
     set(JARS_DEST_DIR "${RESOURCES_DEST_DIR}/jars")
 
     # Mac bundle settings
-    set(MACOSX_BUNDLE_BUNDLE_NAME "${Launcher_DisplayName}")
+    set(MACOSX_BUNDLE_BUNDLE_NAME "${Launcher_MacBundleName}")
     set(MACOSX_BUNDLE_INFO_STRING "${Launcher_DisplayName}: A custom launcher for Minecraft that allows you to easily manage multiple installations of Minecraft at once.")
     set(MACOSX_BUNDLE_GUI_IDENTIFIER "${Launcher_AppID}")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "${Launcher_VERSION_NAME}")
@@ -434,7 +435,7 @@ if(UNIX AND APPLE)
                         --target-device mac
                         --minimum-deployment-target "${ICON_DEPLOYMENT_TARGET}"
                         --platform macosx
-                DEPENDS "${ICON_SOURCE}"
+                DEPENDS "${ICON_SOURCE}/icon.json" "${ICON_SOURCE}/Assets/pohon-tree.png"
                 COMMENT "Compiling asset catalog (${ICON_SOURCE})"
                 VERBATIM
             )
@@ -462,7 +463,6 @@ elseif(UNIX)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${Launcher_Desktop} DESTINATION ${KDE_INSTALL_APPDIR})
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${Launcher_MetaInfo} DESTINATION ${KDE_INSTALL_METAINFODIR})
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${Launcher_SVG} DESTINATION "${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps")
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${Launcher_PNG_256} DESTINATION "${KDE_INSTALL_ICONDIR}/hicolor/256x256/apps" RENAME "${Launcher_AppID}.png")
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${Launcher_MIMEInfo} DESTINATION ${KDE_INSTALL_MIMEDIR})
 

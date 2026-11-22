@@ -62,7 +62,7 @@ runs:
         cmake --install ${{ env.BUILD_DIR }} --config ${{ inputs.build-type }}
 
         cd ${{ env.INSTALL_DIR }}
-        chmod +x "pohonmc.app/Contents/MacOS/pohonmc"
+        chmod +x "PohonMC.app/Contents/MacOS/PohonMC"
 
         if [ -n '${{ inputs.apple-codesign-id }}' ]; then
           APPLE_CODESIGN_ID='${{ inputs.apple-codesign-id }}'
@@ -72,7 +72,7 @@ runs:
           ENTITLEMENTS_FILE='../program_info/AdhocSignedApp.entitlements'
         fi
 
-        sudo codesign --sign "$APPLE_CODESIGN_ID" --deep --force --entitlements "$ENTITLEMENTS_FILE" --options runtime "pohonmc.app"
+        sudo codesign --sign "$APPLE_CODESIGN_ID" --deep --force --entitlements "$ENTITLEMENTS_FILE" --options runtime "PohonMC.app"
 
     - name: Notarize
       shell: bash
@@ -82,18 +82,18 @@ runs:
         cd ${{ env.INSTALL_DIR }}
 
         if [ -n '${{ inputs.apple-notarize-password }}' ]; then
-          ditto -c -k --sequesterRsrc --keepParent "pohonmc.app" ../PohonMC.zip
+          ditto -c -k --sequesterRsrc --keepParent "PohonMC.app" ../PohonMC.zip
           xcrun notarytool submit ../PohonMC.zip \
             --wait --progress \
             --apple-id '${{ inputs.apple-notarize-apple-id }}' \
             --team-id '${{ inputs.apple-notarize-team-id }}' \
             --password '${{ inputs.apple-notarize-password }}'
 
-          xcrun stapler staple "pohonmc.app"
+          xcrun stapler staple "PohonMC.app"
         else
           echo ":warning: Skipping notarization as credentials are not present." >> $GITHUB_STEP_SUMMARY
         fi
-        ditto -c -k --sequesterRsrc --keepParent "pohonmc.app" ../PohonMC.zip
+        ditto -c -k --sequesterRsrc --keepParent "PohonMC.app" ../PohonMC.zip
 
     - name: Create DMG
       shell: bash
@@ -105,7 +105,7 @@ runs:
         staging=$(mktemp -d "${RUNNER_TEMP}/pohonmc-dmg.XXXXXX")
         log="$staging.log"
         trap 'rm -rf "$staging"; rm -f "$log"' EXIT
-        ditto "pohonmc.app" "$staging/pohonmc.app"
+        ditto "PohonMC.app" "$staging/PohonMC.app"
         ln -s /Applications "$staging/Applications"
 
         for attempt in 1 2 3 4 5; do

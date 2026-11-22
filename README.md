@@ -4,7 +4,7 @@ PohonMC Launcher is a fork of [PineconeMC](https://github.com/ElyPrismLauncher/L
 
 <p align="center">
   <img alt="PohonMC Launcher banner with a lantern-lit voxel tree" src="./docs/assets/pohonmc-banner.jpg" width="1000">
-  <br><a href="https://kodin00.github.io/PohonMC/">PohonMC Launcher documentation</a>
+  <br><a href="https://kodin00.github.io/PohonMC/#downloads">Download PohonMC</a> · <a href="https://kodin00.github.io/PohonMC/">Documentation</a>
 </p>
 
 <p align="center">
@@ -12,16 +12,9 @@ PohonMC Launcher is a fork of [PineconeMC](https://github.com/ElyPrismLauncher/L
   <br />This is <b>not</b> endorsed by Prism Launcher or Ely.by.
 </p>
 
-## Why this fork?
-
-There are already quite a few forks out in the wild that add Ely.by support and/or disable the Microsoft account requirement. This fork goes beyond simply adding a login-password prompt and authlib-injector download.
-
-- Modern and secure login: PohonMC Launcher uses OAuth2 to log you in. This means that your credentials are never transferred to the launcher. Instead, you log into your account on the official Ely.by page in the browser, and Ely.by gives the launcher a token to access your account with limited privileges.
-- Skins support on servers: All other forks rely exclusively on authlib-injector to patch Minecraft to support Ely.by. But authlib-injector can't provide skins on servers that don't have a special skins plugin installed. PohonMC Launcher uses Ely.by's official Authlib patches, allowing you to see skins anywhere
-
 ## Installation
 
-- All downloads and instructions for PohonMC Launcher can be found on the [Releases](https://github.com/kodin00/PohonMC/releases/latest) page.
+- All downloads and instructions for PohonMC Launcher can be found on the [Downloads](https://kodin00.github.io/PohonMC/#downloads) page.
 - Last build status can be found in the [GitHub Actions](https://github.com/kodin00/PohonMC/actions) tab.
 
 ### Development Builds

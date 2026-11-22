@@ -236,3 +236,15 @@ details + p { margin-top: 1.2rem; }
   .guide { grid-template-columns: 1fr; padding-block: 2.25rem; }
   .contents { position: static; }
 }
+
+.download-status { color: var(--muted); font-size: .9rem; }
+.download-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.download-card { padding: 1.1rem; border: 1px solid var(--line); border-radius: .4rem; background: #fffef8; }
+.download-card h3 { margin: 0 0 .8rem; font: 800 1.15rem var(--heading); }
+.download-build + .download-build { margin-top: .8rem; }
+.download-button, .download-unavailable { display: block; padding: .6rem .75rem; border-radius: .3rem; font-size: .9rem; font-weight: 750; }
+.download-button { background: var(--forest); color: white; text-decoration: none; }
+.download-button:hover { background: #31533d; }
+.download-unavailable { background: #e8ece2; color: #526458; }
+.download-build small { display: block; margin-top: .25rem; color: var(--muted); line-height: 1.4; }
+@media (max-width: 32rem) { .download-grid { grid-template-columns: 1fr; } }
