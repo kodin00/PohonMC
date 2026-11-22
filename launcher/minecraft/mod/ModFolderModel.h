@@ -73,6 +73,8 @@ class ModFolderModel : public ResourceFolderModel {
         RequiresColumn,
         RequiredByColumn,
         FileNameColumn,
+        // Appended after the upstream columns so saved header layouts keep their per-column widths and order.
+        ServerRequirementColumn,
         NumColumns
     };
     ModFolderModel(const QDir& dir, BaseInstance* instance, bool isIndexed, bool createDir, QObject* parent = nullptr);
@@ -93,6 +95,8 @@ class ModFolderModel : public ResourceFolderModel {
     static QString serverRequirement(const QDir& modsDir, const QString& fileName);
     static bool setServerRequirement(const QDir& modsDir, const QString& fileName, const QString& requirement);
     static bool setServerRequirements(const QDir& modsDir, const QMap<QString, QString>& requirements);
+    /** Re-reads the saved classification for every listed mod and refreshes the Server Requirement column. */
+    void refreshServerRequirements();
 
     bool setResourceEnabled(const QModelIndexList& indexes, EnableAction action) override;
     bool deleteResources(const QModelIndexList& indexes) override;
@@ -104,6 +108,9 @@ class ModFolderModel : public ResourceFolderModel {
    public:
     QStringList requiresList(const QString& id);
     QStringList requiredByList(const QString& id);
+
+   protected slots:
+    void onUpdateSucceeded() override;
 
    private slots:
     void onParseSucceeded(int ticket, const QString& resourceId) override;

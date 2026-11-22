@@ -79,6 +79,10 @@ class Mod : public Resource {
     void setRequiredByCount(int value);
     void setRequiresCount(int value);
 
+    /** The per-instance server classification ("required", "optional" or "unknown"), cached by ModFolderModel. */
+    QString serverRequirement() const { return m_serverRequirement; }
+    void setServerRequirement(const QString& requirement) { m_serverRequirement = requirement; }
+
     /** Get the intneral path to the mod's icon file*/
     QString iconPath() const { return m_local_details.icon_file; }
     /** Gets the icon of the mod, converted to a QPixmap for drawing, and scaled to size. */
@@ -113,4 +117,5 @@ class Mod : public Resource {
 
     int m_requiredByCount = 0;
     int m_requiresCount = 0;
+    QString m_serverRequirement = QStringLiteral("unknown");
 };
