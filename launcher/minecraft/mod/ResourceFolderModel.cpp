@@ -699,23 +699,23 @@ void ResourceFolderModel::loadColumns(QTreeView* tree)
     auto stateSetting = m_instance->settings()->getOrRegisterSetting(stateSettingName, "");
     tree->header()->restoreState(QByteArray::fromBase64(stateSetting->get().toString().toUtf8()));
 
-    auto setVisible = [this, tree](const QVariant& value) {
+    const QVariantMap defaultVisibility{
+        { "Image", true },    { "Version", true },     { "Last Modified", true },
+        { "Provider", true }, { "Pack Format", true }, { "Server Requirement", true },
+    };
+
+    // Columns missing from a saved layout (e.g. added in a newer version) fall back to their default visibility.
+    auto setVisible = [this, tree, defaultVisibility](const QVariant& value) {
         auto visibility = Json::toMap(value.toString());
         for (auto i = 0; i < m_columnNames.size(); ++i) {
             if (m_columnsHideable[i]) {
                 auto name = m_columnNames[i];
-                tree->setColumnHidden(i, !visibility.value(name, false).toBool());
+                tree->setColumnHidden(i, !visibility.value(name, defaultVisibility.value(name, false)).toBool());
             }
         }
     };
 
-    const auto defaultValue = Json::fromMap({
-        { "Image", true },
-        { "Version", true },
-        { "Last Modified", true },
-        { "Provider", true },
-        { "Pack Format", true },
-    });
+    const auto defaultValue = Json::fromMap(defaultVisibility);
     // neither passthrough nor override settings works for this usecase as I need to only set the global when the gate is false
     auto* settings = m_instance->settings();
     if (!settings->getOrRegisterSetting(overrideSettingName, false)->get().toBool()) {
