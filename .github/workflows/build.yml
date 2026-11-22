@@ -174,9 +174,14 @@ jobs:
         run: |
           cmake --build --preset "$CMAKE_PRESET" --config "$BUILD_TYPE"
 
-      #- name: Run tests
-      #  run: |
-      #    ctest --preset "$CMAKE_PRESET" --build-config "$BUILD_TYPE"
+      # Native runners only (the arm64 entries run on arm64 hosts); Windows is
+      # left out until the test binaries are known to find their DLLs there.
+      - name: Run tests
+        if: ${{ runner.os != 'Windows' }}
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --preset "$CMAKE_PRESET" --build-config "$BUILD_TYPE"
 
       ##
       # PACKAGE

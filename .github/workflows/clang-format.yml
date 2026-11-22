@@ -1,0 +1,58 @@
+name: Clang-Format
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - "**.cpp"
+      - "**.h"
+      - "**.hpp"
+      - "**.mm"
+      - ".clang-format"
+      - ".github/workflows/clang-format.yml"
+
+permissions: {}
+
+jobs:
+  clang-format:
+    name: Check formatting of changed lines
+
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0 # Required for diffing against the PR base
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang-format-18
+          command -v git-clang-format-18
+
+      # Only lines changed by the PR are checked; the inherited upstream tree is
+      # not fully clang-format clean.
+      - name: Check changed lines
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Compare against the merge base so unrelated base-branch changes are ignored
+          MERGE_BASE="$(git merge-base "$BASE_SHA" HEAD)"
+          DIFF="$(git-clang-format-18 --binary clang-format-18 --diff --extensions cpp,h,hpp,mm "$MERGE_BASE" || true)"
+          case "$DIFF" in
+            "" | *"no modified files to format"* | *"clang-format did not modify any files"*)
+              echo "Changed lines are clang-format clean."
+              ;;
+            *)
+              echo "$DIFF"
+              echo "::error::clang-format would change lines touched by this PR. Run 'make format' and commit."
+              exit 1
+              ;;
+          esac
