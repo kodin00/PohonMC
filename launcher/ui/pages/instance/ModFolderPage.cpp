@@ -127,6 +127,7 @@ ModFolderPage::ModFolderPage(BaseInstance* inst, ModFolderModel* model, QWidget*
                 requirements.insert(mod->fileinfo().fileName(), requirement);
             if (!requirements.isEmpty() && !ModFolderModel::setServerRequirements(m_model->dir(), requirements))
                 QMessageBox::warning(this, tr("Server Mods"), tr("Could not save the server mod classification."));
+            m_model->refreshServerRequirements();
             static_cast<ResourceFolderModel::ProxyModel*>(m_filterModel)->invalidate();
         });
     }
@@ -140,6 +141,7 @@ ModFolderPage::ModFolderPage(BaseInstance* inst, ModFolderModel* model, QWidget*
         auto* share = serverMenu->addAction(tr("Share Modpack..."));
         connect(share, &QAction::triggered, this, [this, instance] {
             SharePackDialog::showForInstance(instance, this);
+            m_model->refreshServerRequirements();
             m_filterModel->invalidate();
         });
     }
