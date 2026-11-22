@@ -43,7 +43,18 @@ PohonMC downloads supported Modrinth and CurseForge files automatically. Files w
 
 ## Building
 
-If you want to build PohonMC Launcher yourself, check the [build instructions](https://prismlauncher.org/wiki/development/build-instructions).
+Install the dependencies listed in Prism Launcher's [build instructions](https://prismlauncher.org/wiki/development/build-instructions), then use the Makefile at the repository root:
+
+| Command | What it does |
+| --- | --- |
+| `make build` | Configure and build for the host operating system. |
+| `make run` | Build, then launch PohonMC Launcher. |
+| `make test` | Build and run the test suite with `ctest`. |
+| `make package` | Build an installable package: an app bundle on macOS, a `.deb` with `make package deb`. |
+| `make clean` | Remove the `build/` directory. |
+| `make help` | List the available targets. |
+
+The host platform is detected automatically. Override it with `PLATFORM=macos|linux|windows` (or positionally, as in `make build macos`), and pick the build type with `CONFIG=Debug|Release` (default `Debug`). The Makefile drives the CMake presets in `CMakePresets.json`, and all build output goes to `build/`.
 
 ## The following comes from the original Prism Launcher README
 
