@@ -37,6 +37,26 @@ class SharePackTest : public QObject {
             "POHON1:" + QString::fromLatin1(compressed.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)),
             &decoded));
     }
+    void includesManualDownloads()
+    {
+        auto original = manifest();
+        auto files = original.value("files").toArray();
+        const auto downloadable = files.first().toObject();
+        QJsonObject manual{ { "path", "mods/private.jar" }, { "pohonManualDownload", true }, { "pohonServerRequirement", "required" } };
+        files.append(manual);
+        original.insert("files", files);
+        QString error;
+        const auto code = SharePack::encode(original, &error);
+        QVERIFY2(!code.isEmpty(), qPrintable(error));
+        QJsonObject decoded;
+        QVERIFY2(SharePack::decode(code, &decoded, &error), qPrintable(error));
+        QCOMPARE(decoded, original);
+
+        manual.insert("downloads", downloadable.value("downloads"));
+        files.replace(1, manual);
+        original.insert("files", files);
+        QVERIFY(!SharePack::validate(original));
+    }
     void rejectsUntrustedInputs()
     {
         auto m = manifest();

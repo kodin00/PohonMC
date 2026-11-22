@@ -9,6 +9,7 @@ namespace SharePack {
 QString encode(const QJsonObject& manifest, QString* error = nullptr);
 bool decode(const QString& code, QJsonObject* manifest, QString* error = nullptr);
 bool validate(const QJsonObject& manifest, QString* error = nullptr);
+bool requiresManualDownload(const QJsonObject& file);
 }  // namespace SharePack
 
 class SharePackExportTask : public Task {

@@ -38,6 +38,7 @@ class ModrinthCreationTask final : public InstanceCreationTask {
         m_original_instance_id = std::move(originalInstanceId);
     }
 
+    void setCreateOnly() { m_createOnly = true; }
     bool abort() override;
 
     bool updateInstance() override;
@@ -56,6 +57,7 @@ class ModrinthCreationTask final : public InstanceCreationTask {
     Task::Ptr m_task;
 
     std::optional<BaseInstance*> m_instance;
+    bool m_createOnly = false;
 
     QString m_root_path = "minecraft";
 };

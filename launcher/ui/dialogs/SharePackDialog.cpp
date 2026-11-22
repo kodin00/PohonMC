@@ -80,10 +80,14 @@ SharePackDialog::SharePackDialog(const QJsonObject& manifest,
 
     const auto files = m_manifest.value("files").toArray();
     m_onlyRequired->setEnabled(!files.isEmpty());
+    bool hasManualDownloads = false;
     for (const auto& value : files) {
         const auto file = value.toObject();
         const auto path = file.value("path").toString();
-        const auto name = file.value("name").toString(QFileInfo(path).fileName());
+        const auto fileName = QFileInfo(path).fileName();
+        const bool manualDownload = SharePack::requiresManualDownload(file);
+        const auto name = manualDownload ? tr("%1 [manual file]").arg(fileName) : file.value("name").toString(fileName);
+        hasManualDownloads |= manualDownload;
         auto* item = new QTreeWidgetItem(m_mods, { name });
         item->setToolTip(0, path);
 
@@ -107,6 +111,9 @@ SharePackDialog::SharePackDialog(const QJsonObject& manifest,
             updateFilter();
         });
     }
+    if (hasManualDownloads)
+        guidance->setText(guidance->text() + "\n\n" +
+                          tr("Share the files marked Manual file separately. Your friend will see which files to add."));
     connect(m_onlyRequired, &QCheckBox::toggled, this, &SharePackDialog::updateFilter);
 }
 
