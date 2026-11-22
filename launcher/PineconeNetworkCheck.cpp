@@ -19,6 +19,7 @@
 #include "PineconeNetworkCheck.h"
 
 #include "Application.h"
+#include "BuildConfig.h"
 #include "net/HttpMetaCache.h"
 #include "settings/SettingsObject.h"
 
@@ -56,10 +57,12 @@ QMap<PineconeNetworkCheck::Result, QString> PineconeNetworkCheck::fmlLibsUrls()
 
 QMap<PineconeNetworkCheck::Result, QString> PineconeNetworkCheck::newsUrls()
 {
+    // PohonMC hosts its own news feed; upstream mirrors must never replace it.
+    const QString feedUrl = BuildConfig.NEWS_RSS_URL;
     return {
-        { Result::UsePrimary, "" },
-        { Result::UseNewFallback, "https://pineconemc.github.io/feed/feed.xml" },
-        { Result::UseOldFallback, "https://elyprismlauncher.github.io/feed/feed.xml" },
+        { Result::UsePrimary, feedUrl },
+        { Result::UseNewFallback, feedUrl },
+        { Result::UseOldFallback, feedUrl },
     };
 }
 
