@@ -27,18 +27,23 @@ void LoginWizardPage::retranslate()
     ui->retranslateUi(this);
 }
 
-void LoginWizardPage::on_pushButton_clicked()
+void LoginWizardPage::on_mojangButton_clicked()
 {
     wizard()->hide();
     auto account = MSALoginDialog::newAccount(nullptr);
     wizard()->show();
     if (account) {
-        APPLICATION->accounts()->addAccount(account);
-        APPLICATION->accounts()->setDefaultAccount(account);
-        if (wizard()->currentId() == wizard()->pageIds().last()) {
-            wizard()->accept();
-        } else {
-            wizard()->next();
-        }
+        useAccount(account);
+    }
+}
+
+void LoginWizardPage::useAccount(const MinecraftAccountPtr& account)
+{
+    APPLICATION->accounts()->addAccount(account);
+    APPLICATION->accounts()->setDefaultAccount(account);
+    if (wizard()->currentId() == wizard()->pageIds().last()) {
+        wizard()->accept();
+    } else {
+        wizard()->next();
     }
 }
