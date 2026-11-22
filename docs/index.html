@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Install PohonMC Launcher, build a Minecraft modpack locally, and share it with a code.">
+  <title>PohonMC Launcher · Documentation</title>
+  <link rel="icon" href="assets/pohon-tree.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap bar">
+      <a class="brand" href="./">
+        <img src="assets/pohon-tree.png" alt="" width="32" height="32">
+        PohonMC Launcher
+      </a>
+      <nav aria-label="Site">
+        <a href="#install">Install</a>
+        <a href="#share">Share packs</a>
+        <a href="https://github.com/kodin00/PohonMC">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero-layout">
+        <h1 id="hero-title" class="hero-title">
+          <img src="assets/pohonmc-banner.jpg" alt="PohonMC Launcher" width="2172" height="724" fetchpriority="high">
+        </h1>
+        <div class="hero-intro">
+          <p>Build Minecraft modpacks locally and send friends a code to install the same pack.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#install">Get the launcher <span aria-hidden="true">↓</span></a>
+            <a class="button button-secondary" href="#share">How sharing works</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="wrap guide">
+      <aside>
+        <nav class="contents" aria-label="On this page">
+          <p>On this page</p>
+          <a href="#install">Install the launcher</a>
+          <a href="#share">Share a modpack</a>
+          <a href="#join">Install from a code</a>
+          <a href="#troubleshooting">Troubleshooting</a>
+        </nav>
+      </aside>
+      <div class="guide-content">
+        <section id="install">
+          <h2>Install the launcher</h2>
+          <p>Get a stable build from Releases when one is available. For a development build, open a completed Build run and download the artifact for your operating system and CPU. GitHub requires you to sign in to download build artifacts.</p>
+          <div class="link-row">
+            <a href="https://github.com/kodin00/PohonMC/releases">Releases <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/kodin00/PohonMC/actions/workflows/build.yml?query=branch%3Adevelop">Development builds <span aria-hidden="true">↗</span></a>
+          </div>
+          <p>Start the launcher, add a Microsoft or Ely.by account, and choose <strong>Add Instance</strong>. Pick a Minecraft version and, if needed, a mod loader. Open <strong>Edit → Mods</strong> to add and manage mods.</p>
+        </section>
+
+        <section id="share">
+          <h2>Share a modpack</h2>
+          <ol class="steps">
+            <li>Set up an instance with the Minecraft version, loader, and mods you want to share.</li>
+            <li>Select the instance and choose <strong>Export → Share Modpack</strong>. Mark the mods and dependencies players need to join your server as <strong>Required</strong>.</li>
+            <li>Choose <strong>Copy Share Code</strong> and send the complete code to your friends.</li>
+          </ol>
+          <p>The code carries the exact game and loader versions and references to the mod files. Each launcher fetches the files from their original providers.</p>
+        </section>
+
+        <section id="join">
+          <h2>Install from a code</h2>
+          <ol class="steps">
+            <li>Open <strong>Add Instance → Share Code</strong>, paste the code, and choose <strong>Preview Modpack</strong>.</li>
+            <li>Check the Minecraft version, loader, and listed mods. Turn on <strong>Show only server-required mods</strong> to see the ones the author marked.</li>
+            <li>Choose <strong>Install All Mods</strong> to recreate the pack, or <strong>Install Server-Required Mods Only</strong> to install and enable the marked mods.</li>
+          </ol>
+        </section>
+
+        <section id="troubleshooting">
+          <h2>Troubleshooting</h2>
+          <details>
+            <summary>The launcher can’t create a code for one of my mods</summary>
+            <p>Share codes need a supported Modrinth or CurseForge download for each mod. Use <strong>Export → Prism Launcher (zip)</strong> for a private mod or a file without a supported download reference.</p>
+          </details>
+          <details>
+            <summary>The required-only preview is empty</summary>
+            <p>Ask the pack author to mark the mods and dependencies their server requires, then copy a new code. You can also install the full pack.</p>
+          </details>
+          <p>Still stuck? <a href="https://github.com/kodin00/PohonMC/issues">Report an issue on GitHub <span aria-hidden="true">↗</span></a></p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-content">
+      <p>PohonMC Launcher is an independent fork of PineconeMC and Prism Launcher.</p>
+      <a href="https://github.com/kodin00/PohonMC">Source code <span aria-hidden="true">↗</span></a>
+    </div>
+  </footer>
+</body>
+</html>

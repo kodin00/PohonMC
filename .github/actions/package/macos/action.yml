@@ -102,16 +102,28 @@ runs:
       run: |
         cd ${{ env.INSTALL_DIR }}
 
-        mkdir -p src
-        cp -R "pohonmc.app" src/
+        staging=$(mktemp -d "${RUNNER_TEMP}/pohonmc-dmg.XXXXXX")
+        log="$staging.log"
+        trap 'rm -rf "$staging"; rm -f "$log"' EXIT
+        ditto "pohonmc.app" "$staging/pohonmc.app"
+        ln -s /Applications "$staging/Applications"
 
-        ln -s /Applications src/
+        for attempt in 1 2 3 4 5; do
+          if hdiutil create \
+              -volname "PohonMC ${{ inputs.version }}" \
+              -srcfolder "$staging" \
+              -ov -format ULMO \
+              "../PohonMC.dmg" > "$log" 2>&1; then
+            cat "$log"
+            exit 0
+          fi
 
-        hdiutil create \
-            -volname "PohonMC ${{ inputs.version }}" \
-            -srcfolder src \
-            -ov -format ULMO \
-            "../PohonMC.dmg"
+          cat "$log" >&2
+          if (( attempt == 5 )) || ! grep -Fq 'Resource busy' "$log"; then
+            exit 1
+          fi
+          sleep "$((attempt * 3))"
+        done
 
     - name: Make Sparkle signature
       shell: bash

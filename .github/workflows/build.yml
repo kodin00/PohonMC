@@ -61,8 +61,6 @@ jobs:
       contents: read
       # Required for Azure Trusted Signing
       id-token: write
-      # Required for vcpkg binary cache
-      packages: write
 
     strategy:
       fail-fast: false
@@ -102,6 +100,7 @@ jobs:
             cmake-preset: windows_msvc
             vcvars-arch: arm64
             qt-version: 6.10.2
+            qt-architecture: win64_msvc2022_arm64
 
           - os: macos-26
             artifact-name: macOS
@@ -142,10 +141,30 @@ jobs:
           msystem: ${{ matrix.msystem }}
           vcvars-arch: ${{ matrix.vcvars-arch }}
           qt-version: ${{ matrix.qt-version }}
+          qt-architecture: ${{ matrix.qt-architecture }}
 
       ##
       # BUILD
       ##
+
+      - name: Prepare vcpkg cache
+        if: ${{ matrix.cmake-preset == 'windows_msvc' || matrix.cmake-preset == 'macos_universal' }}
+        id: vcpkg-cache
+        env:
+          CACHE_DIR: ${{ runner.temp }}/vcpkg-archives
+        run: |
+          cmake -E make_directory "$CACHE_DIR"
+          echo "VCPKG_DEFAULT_BINARY_CACHE=$CACHE_DIR" >> "$GITHUB_ENV"
+          echo "image-version=${ImageVersion:-local}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache vcpkg binaries
+        if: ${{ steps.vcpkg-cache.outcome == 'success' }}
+        uses: actions/cache@v5.0.5
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ matrix.artifact-name }}-${{ steps.vcpkg-cache.outputs.image-version }}-${{ hashFiles('vcpkg*.json', 'cmake/vcpkg-ports/**', 'cmake/vcpkg-triplets/**') }}
+          restore-keys: |
+            vcpkg-${{ matrix.artifact-name }}-
 
       - name: Configure project
         run: |

@@ -17,12 +17,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QTest>
+#include "minecraft/mod/ModFolderModel.h"
 #include "modplatform/ModIndex.h"
 #include "modplatform/modrinth/ModrinthPackIndex.h"
-#include "minecraft/mod/ModFolderModel.h"
-#include <QJsonObject>
 
 #include <modplatform/packwiz/Packwiz.h>
 
@@ -47,8 +47,11 @@ class PackwizTest : public QObject {
 
     void providerDeclarationRoundTrip()
     {
-        QJsonObject json{{"project_id", "project"}, {"title", "Example"}, {"slug", "example"},
-                         {"server_side", "required"}, {"client_side", "optional"}};
+        QJsonObject json{ { "project_id", "project" },
+                          { "title", "Example" },
+                          { "slug", "example" },
+                          { "server_side", "required" },
+                          { "client_side", "optional" } };
         ModPlatform::IndexedPack pack{};
         Modrinth::loadIndexedPack(pack, json);
         QCOMPARE(pack.serverRequirementDeclaration, "required");
